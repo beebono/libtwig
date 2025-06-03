@@ -40,7 +40,7 @@ static int ion_alloc(int ion_dev_fd, size_t size) {
     struct ion_allocation_data alloc = {
         .len = size,
         .align = PAGE_SIZE,
-        .heap_id_mask = ION_HEAP_TYPE_DMA_MASK;
+        .heap_id_mask = ION_HEAP_TYPE_DMA_MASK,
         .flags = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC,
     };
 
@@ -109,7 +109,7 @@ static void ion_flush_cache(int ion_dev_fd, void *addr, size_t size) {
 		.arg = (unsigned long)(&cache_range),
 	};
 
-    ioctl(ion_fd, ION_IOC_CUSTOM, &custom_data);
+    ioctl(ion_dev_fd, ION_IOC_CUSTOM, &custom_data);
 }
 
 static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, size_t size) {
@@ -174,8 +174,8 @@ static void twig_allocator_ion_destroy(twig_allocator_t *allocator) {
 
     if (allocator->ion_dev_fd != -1) {
         close(allocator->ion_dev_fd);
-        free(allocator);
     }
+    free(allocator);
 }
 
 twig_allocator_t *twig_allocator_ion_create(void) {
