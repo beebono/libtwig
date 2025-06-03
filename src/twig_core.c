@@ -151,5 +151,5 @@ EXPORT void* twig_get_ve_regs(struct twig_dev *dev) {
     if (!dev)
         return (void*)0x0;
 
-    return dev->regs;
+    return (char*)dev->regs + 0x200;
 }

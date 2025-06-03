@@ -17,19 +17,20 @@ static inline uint32_t twig_readl(void *addr) {
     return *(volatile uint32_t *)addr;
 }
 
-#define TWIG_READ_REG(dev, reg) \
-    twig_readl((dev)->regs + (reg))
+#define TWIG_READ_REG(reg_base, reg) \
+    twig_readl((char*)(reg_base) + (reg))
 
-#define TWIG_WRITE_REG(dev, reg, val) \
-    twig_writel((val), (dev)->regs + (reg))
+#define TWIG_WRITE_REG(reg_base, reg, val) \
+    twig_writel((val), (char*)(reg_base) + (reg))
 
-#define TWIG_WRITE_STRUCT(dev, reg, struct_val) \
-    twig_writel(*(uint32_t*)&(struct_val), (dev)->regs + (reg))
+#define TWIG_WRITE_STRUCT(reg_base, reg, struct_val) \
+    twig_writel(*(uint32_t*)&(struct_val), (char*)(reg_base) + (reg))
 
 #define MACC_VE_VERSION 				    0xF0
 
 #define STARTCODE_DETECT_E                  (1<<25)
 #define EPTB_DETECTION_BY_PASS              (1<<24)
+#define VLD_BUSY                            (1<<8)
 
 #define N_BITS(n)                           (n<<8)
 #define SHOW_BITS                           1
@@ -42,8 +43,6 @@ static inline uint32_t twig_readl(void *addr) {
 #define DECODE_SLICE                        8
 #define START_CODE_DETECT                   12
 #define START_CODE_TERMINATE                13
-
-#define VLD_BUSY                            (1<<8)
 
 #define REG_SPS                             0x00
 #define REG_PPS                             0x04
