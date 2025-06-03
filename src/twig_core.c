@@ -90,7 +90,7 @@ EXPORT struct twig_dev *twig_open(twig_mem_type_t mem_type) {
     return &ve;
 
 err_destroy_ve_alloc:
-    ve.allocator_ve->destroy(ve.allocator_ve)
+    ve.allocator_ve->destroy(ve.allocator_ve);
     ve.allocator_ve = NULL;
 
 err_unmap:

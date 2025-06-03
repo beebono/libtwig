@@ -15,15 +15,15 @@
 #define PAGE_SIZE 4096
 
 struct twig_allocator {
-    twig_mem_t *(*mem_alloc)(struct twig_allocator *allocator, size_t size);
-    void (*mem_free)(struct twig_allocator *allocator, twig_mem_t *mem);
-	void (*mem_flush)(struct twig_allocator *allocator, twig_mem_t *mem);
-	void (*destroy)(struct twig_allocator *allocator);
+    twig_mem_t *(*mem_alloc)(twig_allocator_t *allocator, size_t size);
+    void (*mem_free)(twig_allocator_t *allocator, twig_mem_t *mem);
+	void (*mem_flush)(twig_allocator_t *allocator, twig_mem_t *mem);
+	void (*destroy)(twig_allocator_t *allocator);
     int ion_dev_fd;
 };
 
-struct twig_allocator *twig_allocator_ve_create(int ve_fd, const struct cedarv_env_infomation *ve_info);
-struct twig_allocator *twig_allocator_ion_create(void);
+twig_allocator_t *twig_allocator_ve_create(int ve_fd, const struct cedarv_env_infomation *ve_info);
+twig_allocator_t *twig_allocator_ion_create(void);
 
 uint32_t phys2bus(uint32_t phys);
 uint32_t bus2phys(uint32_t bus);

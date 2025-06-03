@@ -2,7 +2,13 @@
 #include "twig_priv.h"
 #include "allwinner/ion.h"
 
-#define MEM_OFFSET		            0x40000000UL
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+#define MEM_OFFSET	                0x40000000UL
 #define ION_IOC_SUNXI_FLUSH_RANGE	5
 #define ION_IOC_SUNXI_FLUSH_ALL		6
 #define ION_IOC_SUNXI_PHYS_ADDR		7
@@ -24,17 +30,17 @@ typedef struct {
 struct ion_mem {
     twig_mem_t pub_mem;
     int handle;
-}
+};
 
 static int ion_alloc(int ion_dev_fd, size_t size) {
     if (ion_dev_fd < 0 || size <= 0)
         return -1;
 
-    size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)
+    size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
     struct ion_allocation_data alloc = {
         .len = size,
         .align = PAGE_SIZE,
-        .heap_id_mask = ION_HEAP_TYP_DMA_MASK;
+        .heap_id_mask = ION_HEAP_TYPE_DMA_MASK;
         .flags = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC,
     };
 
@@ -47,7 +53,7 @@ static int ion_alloc(int ion_dev_fd, size_t size) {
 
 static uint32_t ion_get_phys_addr(int ion_dev_fd, int handle) {
     if (ion_dev_fd < 0 || handle < 0)
-        return -1;
+        return 0x0;
 
     sunxi_phys_data phys_data = {
 		.handle = handle,
@@ -103,7 +109,7 @@ static void ion_flush_cache(int ion_dev_fd, void *addr, size_t size) {
 		.arg = (unsigned long)(&cache_range),
 	};
 
-    ioctl(ion_fd, ION_IOC_SUNXI_FLUSH_RANGE, &cache_range)
+    ioctl(ion_fd, ION_IOC_CUSTOM, &custom_data);
 }
 
 static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, size_t size) {
@@ -120,18 +126,20 @@ static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, siz
     if (!mem->pub_mem.phys)
         goto err_ion_free;
 
+    mem->pub_mem.bus = mem->pub_mem.phys;
     mem->pub_mem.ion_fd = ion_map(allocator->ion_dev_fd, mem->handle);
     if (mem->pub_mem.ion_fd < 0)
         goto err_ion_free;
 
-    mem->pub_mem.virt = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.fd, 0);
+    mem->pub_mem.virt = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.ion_fd, 0);
     if (mem->pub_mem.virt == MAP_FAILED)
         goto err_close;
 
+    mem->pub_mem.type = TWIG_MEM_ION;
     return &mem->pub_mem;
 
 err_close:
-    close(mem->pub_mem.ion_fd)
+    close(mem->pub_mem.ion_fd);
 
 err_ion_free:
     ion_free(allocator->ion_dev_fd, mem->handle);
@@ -171,7 +179,7 @@ static void twig_allocator_ion_destroy(twig_allocator_t *allocator) {
 }
 
 twig_allocator_t *twig_allocator_ion_create(void) {
-    twig_allocator *allocator = calloc(1, sizeof(*allocator));
+    struct twig_allocator *allocator = calloc(1, sizeof(*allocator));
     if (!allocator)
         return NULL;
 
