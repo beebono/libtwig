@@ -112,7 +112,7 @@ twig_allocator_t *twig_allocator_ve_create(int ve_fd, const struct cedarv_env_in
 	if (ve_info->phymem_total_size <= 0)
 		return NULL;
 
-	struct twig_allocator *allocator = calloc(1, sizeof(*allocator));
+	twig_allocator_t *allocator = calloc(1, sizeof(*allocator));
 	if (!allocator)
 		return NULL;
 
