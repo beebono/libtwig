@@ -27,14 +27,13 @@ set_target_properties(twig PROPERTIES
 
 target_link_libraries(twig pthread)
 
-install(TARGETS twig twig_static
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    PUBLIC_HEADER DESTINATION include
+install(TARGETS twig
+    LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/libtwig/lib
+    PUBLIC_HEADER DESTINATION ${CMAKE_SOURCE_DIR}/libtwig/include
 )
 
 install(FILES 
     include/twig_regs.h
-    DESTINATION include
+    DESTINATION ${CMAKE_SOURCE_DIR}/libtwig/include
     OPTIONAL
 )

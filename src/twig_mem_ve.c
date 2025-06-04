@@ -69,7 +69,7 @@ static void twig_allocator_ve_mem_free(twig_allocator_t *allocator, twig_mem_t *
     struct ve_mem *chunk;
     for (chunk = &first_chunk; chunk != NULL; chunk = chunk->next) {
         if (chunk->pub_mem.virt == pub_mem->virt) {
-            munmap(pub_mem.virt, chunk->pub_mem.size);
+            munmap(pub_mem->virt, chunk->pub_mem.size);
             chunk->pub_mem.virt = NULL;
             break;
         }
