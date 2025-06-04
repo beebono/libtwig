@@ -146,3 +146,62 @@ EXPORT void* twig_get_ve_regs(struct twig_dev *dev) {
 
     return (char*)dev->regs + 0x200;
 }
+
+EXPORT void twig_enable_decoder(struct twig_dev *dev) {
+    if (!dev)
+        return;
+
+    volatile vetop_reg_mode_sel_t* pVeModeSelect;
+	pthread_mutex_lock(&dev->register_lock);
+	pVeModeSelect = (vetop_reg_mode_sel_t*)(info.address_macc + VE_MODE_SELECT);
+    pVeModeSelect->mode = 1;
+    pthread_mutex_unlock(&dev->register_lock);	
+}
+
+EXPORT void twig_disable_decoder(struct twig_dev *dev) {
+    if (!dev)
+        return;
+
+    volatile vetop_reg_mode_sel_t* pVeModeSelect;
+	pthread_mutex_lock(&dev->register_lock);
+	pVeModeSelect = (vetop_reg_mode_sel_t*)(info.address_macc + VE_MODE_SELECT);
+	pVeModeSelect->mode = 7;
+	pthread_mutex_unlock(&dev->register_lock);
+}
+
+EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size, twig_mem_type_t mem_type) {
+    if (!dev || size <= 0 || mem_type == TWIG_MEM_BOTH)
+        return NULL;
+    
+    if ((mem_type == TWIG_MEM_VE || mem_type == TWIG_MEM_ANY) && dev->allocator_ve) {
+        return dev->allocator_ve->mem_alloc(dev->allocator_ve, size);
+    }
+    
+    if ((mem_type == TWIG_MEM_ION || mem_type == TWIG_MEM_ANY) && dev->allocator_ion) {
+        return dev->allocator_ion->mem_alloc(dev->allocator_ion, size);
+    }
+    
+    return NULL;
+}
+
+EXPORT void twig_free_mem(twig_mem_t *mem) {
+    if (!mem)
+        return;
+    
+    if (mem->type == TWIG_MEM_VE && ve.allocator_ve) {
+        ve.allocator_ve->mem_free(ve.allocator_ve, mem);
+    } else if (mem->type == TWIG_MEM_ION && ve.allocator_ion) {
+        ve.allocator_ion->mem_free(ve.allocator_ion, mem);
+    }
+}
+
+EXPORT void twig_flush_cache(twig_mem_t *mem) {
+    if (!mem)
+        return;
+    
+    if (mem->type == TWIG_MEM_VE && ve.allocator_ve) {
+        ve.allocator_ve->mem_flush(ve.allocator_ve, mem);
+    } else if (mem->type == TWIG_MEM_ION && ve.allocator_ion) {
+        ve.allocator_ion->mem_flush(ve.allocator_ion, mem);
+    }
+}
