@@ -6,7 +6,7 @@ struct ve_mem {
     struct ve_mem *next;
 };
 
-struct ve_mem first_chunk;
+static struct ve_mem first_chunk = {0};
 
 static twig_mem_t *twig_allocator_ve_mem_alloc(twig_allocator_t *allocator, size_t size) {
     if (!allocator || size <= 0)
@@ -40,15 +40,19 @@ static twig_mem_t *twig_allocator_ve_mem_alloc(twig_allocator_t *allocator, size
 
     best_chunk->pub_mem.virt = addr;
     best_chunk->pub_mem.size = size;
+    best_chunk->pub_mem.type = TWIG_MEM_VE;
     ret = &best_chunk->pub_mem;
     
     if (size_left > 0) {
         chunk = malloc(sizeof(struct ve_mem));
-        chunk->pub_mem.phys = best_chunk->pub_mem.phys + size;
-        chunk->pub_mem.size = size_left;
-        chunk->pub_mem.virt = NULL;
-        chunk->next = best_chunk->next;
-        best_chunk->next = chunk;
+        if (chunk) {
+            chunk->pub_mem.phys = best_chunk->pub_mem.phys + size;
+            chunk->pub_mem.size = size_left;
+            chunk->pub_mem.virt = NULL;
+            chunk->pub_mem.type = TWIG_MEM_VE;
+            chunk->next = best_chunk->next;
+            best_chunk->next = chunk;
+        }
     }
 
 finish:
@@ -64,7 +68,7 @@ static void twig_allocator_ve_mem_free(twig_allocator_t *allocator, twig_mem_t *
 
     struct ve_mem *chunk;
     for (chunk = &first_chunk; chunk != NULL; chunk = chunk->next) {
-        if (chunk->pub_mem.virt == pub_mem.virt) {
+        if (chunk->pub_mem.virt == pub_mem->virt) {
             munmap(pub_mem.virt, chunk->pub_mem.size);
             chunk->pub_mem.virt = NULL;
             break;
@@ -89,9 +93,9 @@ static void twig_allocator_ve_mem_flush(twig_allocator_t *allocator, twig_mem_t 
     if (!allocator || !pub_mem)
         return;
 
-    struct CedarvCacheRangeS range = {
-        .start = (int)pub_mem.virt,
-        .end = (int)(pub_mem.virt + pub_mem.size)
+    struct cedarv_cache_range range = {
+        .start = (int)pub_mem->virt,
+        .end = (int)(pub_mem->virt + pub_mem->size)
     };
     ioctl(allocator->dev_fd, IOCTL_FLUSH_CACHE, (void*)(&range));
 }
@@ -100,6 +104,7 @@ static void twig_allocator_ve_destroy(twig_allocator_t *allocator) {
     if (!allocator)
         return;
 
+    pthread_mutex_destroy(&allocator->lock);
     free(allocator);
 }
 
@@ -115,6 +120,9 @@ struct twig_allocator_t *twig_allocator_ve_create(int ve_fd, const struct cedarv
 
 	first_chunk.pub_mem.phys = ve_info->phymem_start - PAGE_OFFSET;
 	first_chunk.pub_mem.size = ve_info->phymem_total_size;
+    first_chunk.pub_mem.virt = NULL;
+    first_chunk.pub_mem.type = TWIG_MEM_VE;
+    first_chunk.next = NULL;
 
 	pthread_mutex_init(&allocator->lock, NULL);
 
