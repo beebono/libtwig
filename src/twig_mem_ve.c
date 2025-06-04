@@ -108,7 +108,7 @@ static void twig_allocator_ve_destroy(twig_allocator_t *allocator) {
     free(allocator);
 }
 
-struct twig_allocator_t *twig_allocator_ve_create(int ve_fd, const struct cedarv_env_infomation *ve_info) {
+twig_allocator_t *twig_allocator_ve_create(int ve_fd, const struct cedarv_env_infomation *ve_info) {
 	if (ve_info->phymem_total_size <= 0)
 		return NULL;
 

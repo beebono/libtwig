@@ -47,9 +47,6 @@ twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size, twig_mem_type_t mem_typ
 void twig_free_mem(twig_mem_t *mem);
 void twig_flush_cache(twig_mem_t *mem);
 
-void twig_enable_decoder(twig_dev_t *dev);
-void twig_disable_decoder(twig_dev_t dev);
-
 static inline uint32_t twig_get_phys_addr(twig_mem_t *mem) {
     return mem ? mem->phys : 0;
 }

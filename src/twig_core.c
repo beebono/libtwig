@@ -18,7 +18,7 @@ static struct twig_dev {
     pthread_mutex_t register_lock;
 } ve = { .fd = -1, .register_lock = PTHREAD_MUTEX_INITIALIZER };
 
-struct cedarv_env_infomation info;
+static struct cedarv_env_infomation info = {0};
 
 void reset_ve(void) {
     ioctl(ve.fd, IOCTL_RESET_VE, 0);
