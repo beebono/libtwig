@@ -9,6 +9,12 @@
 #ifndef TWIG_H_
 #define TWIG_H_
 
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 typedef enum { 
     TWIG_MEM_ANY = 0,
     TWIG_MEM_VE = 1,
@@ -19,7 +25,6 @@ typedef enum {
 typedef struct {
     void *virt;
 	uint32_t phys;
-    uint32_t bus;
 	size_t size;
     int ion_fd;
     twig_mem_type_t type;
@@ -38,10 +43,6 @@ void twig_put_ve_regs(twig_dev_t *dev);
 twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size);
 void twig_free_mem(twig_mem_t *mem);
 void twig_flush_cache(twig_mem_t *mem);
-
-static inline uint32_t twig_get_bus_addr(twig_mem_t *mem) {
-    return mem ? mem->bus : 0;
-}
 
 static inline uint32_t twig_get_phys_addr(twig_mem_t *mem) {
     return mem ? mem->phys : 0;

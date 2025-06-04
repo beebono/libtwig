@@ -2,14 +2,7 @@
 #include "twig_priv.h"
 #include "twig_regs.h"
 
-#include <sys/mman.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <stdint.h>
-
 #define DEVICE          "/dev/cedar_dev"
-#define PAGE_OFFSET     (0xc0000000)
 #define VE_MODE_SELECT  0x00
 #define VE_RESET	    0x04
 

@@ -12,21 +12,22 @@
 #include "twig.h"
 #include "allwinner/cedardev_api.h"
 
-#define PAGE_SIZE 4096
+#include <pthread.h>
+
+#define PAGE_SIZE   4096
+#define PAGE_OFFSET (0xc0000000)
 
 struct twig_allocator {
     twig_mem_t *(*mem_alloc)(twig_allocator_t *allocator, size_t size);
     void (*mem_free)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*mem_flush)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*destroy)(twig_allocator_t *allocator);
-    int ion_dev_fd;
+    pthread_mutex_t lock;
+    int dev_fd;
 };
 
 twig_allocator_t *twig_allocator_ve_create(int ve_fd, const struct cedarv_env_infomation *ve_info);
 twig_allocator_t *twig_allocator_ion_create(void);
-
-uint32_t phys2bus(uint32_t phys);
-uint32_t bus2phys(uint32_t bus);
 
 enum VeRegionE {
     VE_REGION_INVALID,
