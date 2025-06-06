@@ -26,7 +26,6 @@ target_include_directories(twig PUBLIC
 set_target_properties(twig PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1
-    PUBLIC_HEADER "include/twig.h"
 )
 
 target_link_libraries(twig PRIVATE pthread)
@@ -39,13 +38,12 @@ configure_file(
 
 install(TARGETS twig
     LIBRARY DESTINATION lib
-    PUBLIC_HEADER DESTINATION include
 )
 
 install(FILES 
+    include/twig.h
     include/twig_regs.h
     DESTINATION include
-    OPTIONAL
 )
 
 install(FILES 
