@@ -31,6 +31,12 @@ set_target_properties(twig PROPERTIES
 
 target_link_libraries(twig PRIVATE pthread)
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/twig.pc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/twig.pc
+    @ONLY
+)
+
 install(TARGETS twig
     LIBRARY DESTINATION lib
     PUBLIC_HEADER DESTINATION include
@@ -40,4 +46,9 @@ install(FILES
     include/twig_regs.h
     DESTINATION include
     OPTIONAL
+)
+
+install(FILES 
+    ${CMAKE_CURRENT_BINARY_DIR}/twig.pc
+    DESTINATION lib/pkgconfig
 )
