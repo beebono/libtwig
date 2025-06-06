@@ -2,6 +2,7 @@
 #include "twig_priv.h"
 #include "allwinner/ion.h"
 
+#define PAGE_SIZE                   4096
 #define MEM_OFFSET	                0x40000000UL
 #define ION_IOC_SUNXI_FLUSH_RANGE	5
 #define ION_IOC_SUNXI_FLUSH_ALL		6

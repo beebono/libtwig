@@ -9,24 +9,16 @@
 #ifndef TWIG_PRIV_H_
 #define TWIG_PRIV_H_
 
-#include "twig.h"
 #include "allwinner/cedardev_api.h"
-
-#include <pthread.h>
-
-#define PAGE_SIZE   4096
-#define PAGE_OFFSET (0xc0000000)
 
 struct twig_allocator {
     twig_mem_t *(*mem_alloc)(twig_allocator_t *allocator, size_t size);
     void (*mem_free)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*mem_flush)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*destroy)(twig_allocator_t *allocator);
-    pthread_mutex_t lock;
     int dev_fd;
 };
 
-twig_allocator_t *twig_allocator_ve_create(int ve_fd, const struct cedarv_env_infomation *ve_info);
 twig_allocator_t *twig_allocator_ion_create(void);
 
 enum VeRegionE {

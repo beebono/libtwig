@@ -3,8 +3,7 @@ project(twig VERSION 1.0.0 LANGUAGES C)
 
 set(TWIG_SOURCES
     src/twig_core.c
-    src/twig_mem_ion.c
-    src/twig_mem_ve.c
+    src/twig_ion.c
 )
 
 set(TWIG_HEADERS

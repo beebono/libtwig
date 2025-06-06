@@ -16,34 +16,26 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
-
-typedef enum { 
-    TWIG_MEM_ANY = 0,
-    TWIG_MEM_VE = 1,
-    TWIG_MEM_ION = 2,
-    TWIG_MEM_BOTH = 3,
-} twig_mem_type_t;
+#include <stdio.h>
 
 typedef struct {
     void *virt;
 	uint32_t phys;
 	size_t size;
     int ion_fd;
-    twig_mem_type_t type;
 } twig_mem_t;
 
 typedef struct twig_allocator twig_allocator_t;
 typedef struct twig_dev twig_dev_t;
 
-twig_dev_t* twig_open(twig_mem_type_t mem_type);    
+twig_dev_t* twig_open(void);    
 void twig_close(twig_dev_t *dev);
-unsigned int twig_get_ve_version(twig_dev_t *dev);
 int twig_wait_for_ve(twig_dev_t *dev);
 void *twig_get_ve_regs(twig_dev_t *dev);
 void twig_enable_decoder(twig_dev_t *dev);
 void twig_disable_decoder(twig_dev_t *dev);
 
-twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size, twig_mem_type_t mem_type);
+twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size);
 void twig_free_mem(twig_mem_t *mem);
 void twig_flush_cache(twig_mem_t *mem);
 
