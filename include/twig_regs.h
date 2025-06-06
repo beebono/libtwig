@@ -24,7 +24,11 @@ static inline uint32_t twig_readl(void *addr) {
     twig_writel((val), (char*)(reg_base) + (reg))
 
 #define TWIG_WRITE_STRUCT(reg_base, reg, struct_val) \
-    twig_writel(*(uint32_t*)&(struct_val), (char*)(reg_base) + (reg))
+    do { \
+        uint32_t temp_val; \
+        memcpy(&temp_val, &(struct_val), sizeof(uint32_t)); \
+        twig_writel(temp_val, (char*)(reg_base) + (reg)); \
+    } while(0)
 
 #define MACC_VE_VERSION 				    0xF0
 

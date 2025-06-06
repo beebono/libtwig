@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(libtwig VERSION 1.0.0 LANGUAGES C)
-
-include_directories(include)
+project(twig VERSION 1.0.0 LANGUAGES C)
 
 set(TWIG_SOURCES
     src/twig_core.c
@@ -17,7 +15,13 @@ set(TWIG_HEADERS
     include/allwinner/ion.h
 )
 
-add_library(twig SHARED ${TWIG_SOURCES} ${TWIG_HEADERS})
+add_library(twig SHARED ${TWIG_SOURCES})
+target_compile_options(twig PRIVATE -std=gnu99)
+
+target_include_directories(twig PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
 set_target_properties(twig PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -25,15 +29,15 @@ set_target_properties(twig PROPERTIES
     PUBLIC_HEADER "include/twig.h"
 )
 
-target_link_libraries(twig pthread)
+target_link_libraries(twig PRIVATE pthread)
 
 install(TARGETS twig
-    LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/libtwig/lib
-    PUBLIC_HEADER DESTINATION ${CMAKE_SOURCE_DIR}/libtwig/include
+    LIBRARY DESTINATION lib
+    PUBLIC_HEADER DESTINATION include
 )
 
 install(FILES 
     include/twig_regs.h
-    DESTINATION ${CMAKE_SOURCE_DIR}/libtwig/include
+    DESTINATION include
     OPTIONAL
 )
