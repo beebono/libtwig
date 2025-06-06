@@ -15,8 +15,7 @@ static struct twig_dev {
     pthread_mutex_t register_lock;
 } ve = { .fd = -1, .register_lock = PTHREAD_MUTEX_INITIALIZER };
 
-void reset_ve(void) {
-    ioctl(ve.fd, IOCTL_RESET_VE, 0);
+void prepare_ve(void) {
     pthread_mutex_lock(&ve.register_lock);
     volatile vetop_reg_mode_sel_t* pVeModeSelect = (vetop_reg_mode_sel_t*)(ve.regs + VE_MODE_SELECT);
     pVeModeSelect->ddr_mode = 3;
@@ -37,12 +36,16 @@ EXPORT struct twig_dev *twig_open(void) {
     ioctl(ve.fd, IOCTL_SET_REFCOUNT, 0);
     if (ioctl(ve.fd, IOCTL_ENGINE_REQ, 0) < 0)
         goto err_close;
-        
+    
+    ioctl(ve.fd, IOCTL_ENABLE_VE, 0);
+    ioctl(ve.fd, IOCTL_SET_VE_FREQ, 180);
+    ioctl(ve.fd, IOCTL_RESET_VE, 0);
+
     ve.regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, ve.fd, VE_BASE_ADDR);
     if (ve.regs == MAP_FAILED)
         goto err_release;
 
-    reset_ve();
+    prepare_ve();
 
     ve.allocator = twig_allocator_ion_create();
     if (!ve.allocator)
