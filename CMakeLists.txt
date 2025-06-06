@@ -15,7 +15,6 @@ set(TWIG_HEADERS
 )
 
 add_library(twig SHARED ${TWIG_SOURCES})
-target_compile_options(twig PRIVATE -std=gnu99)
 
 target_include_directories(twig PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
