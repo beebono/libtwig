@@ -32,8 +32,6 @@ twig_dev_t* twig_open(void);
 void twig_close(twig_dev_t *dev);
 int twig_wait_for_ve(twig_dev_t *dev);
 void *twig_get_ve_regs(twig_dev_t *dev);
-void twig_enable_decoder(twig_dev_t *dev);
-void twig_disable_decoder(twig_dev_t *dev);
 
 twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size);
 void twig_free_mem(twig_mem_t *mem);

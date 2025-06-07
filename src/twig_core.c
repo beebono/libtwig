@@ -15,15 +15,6 @@ static struct twig_dev {
     pthread_mutex_t register_lock;
 } ve = { .fd = -1, .register_lock = PTHREAD_MUTEX_INITIALIZER };
 
-void prepare_ve(void) {
-    pthread_mutex_lock(&ve.register_lock);
-    volatile vetop_reg_mode_sel_t* pVeModeSelect = (vetop_reg_mode_sel_t*)(ve.regs + VE_MODE_SELECT);
-    pVeModeSelect->ddr_mode = 3;
-    pVeModeSelect->rec_wr_mode = 1;
-    pVeModeSelect->mode = 7;
-    pthread_mutex_unlock(&ve.register_lock);
-}
-
 EXPORT struct twig_dev *twig_open(void) {
     if (ve.fd != -1)
 		return NULL;
@@ -43,8 +34,6 @@ EXPORT struct twig_dev *twig_open(void) {
     ve.regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, ve.fd, VE_BASE_ADDR);
     if (ve.regs == MAP_FAILED)
         goto err_release;
-
-    prepare_ve();
 
     ve.allocator = twig_allocator_ion_create();
     if (!ve.allocator)
@@ -100,28 +89,6 @@ EXPORT void* twig_get_ve_regs(struct twig_dev *dev) {
         return (void*)0x0;
 
     return (char*)dev->regs + 0x200;
-}
-
-EXPORT void twig_enable_decoder(struct twig_dev *dev) {
-    if (!dev)
-        return;
-
-    volatile vetop_reg_mode_sel_t* pVeModeSelect;
-    pthread_mutex_lock(&dev->register_lock);
-    pVeModeSelect = (vetop_reg_mode_sel_t*)(dev->regs + VE_MODE_SELECT);
-    pVeModeSelect->mode = 1;
-    pthread_mutex_unlock(&dev->register_lock);	
-}
-
-EXPORT void twig_disable_decoder(struct twig_dev *dev) {
-    if (!dev)
-        return;
-
-    volatile vetop_reg_mode_sel_t* pVeModeSelect;
-    pthread_mutex_lock(&dev->register_lock);
-    pVeModeSelect = (vetop_reg_mode_sel_t*)(dev->regs + VE_MODE_SELECT);
-    pVeModeSelect->mode = 7;
-    pthread_mutex_unlock(&dev->register_lock);
 }
 
 EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size) {
