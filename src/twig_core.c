@@ -19,7 +19,7 @@ void prepare_ve(void) {
     pthread_mutex_lock(&ve.register_lock);
     volatile vetop_reg_mode_sel_t* pVeModeSelect = (vetop_reg_mode_sel_t*)(ve.regs + VE_MODE_SELECT);
     pVeModeSelect->ddr_mode = 3;
-	pVeModeSelect->rec_wr_mode = 1;
+    pVeModeSelect->rec_wr_mode = 1;
     pVeModeSelect->mode = 7;
     pthread_mutex_unlock(&ve.register_lock);
 }
@@ -33,7 +33,6 @@ EXPORT struct twig_dev *twig_open(void) {
         return NULL;
     }
 
-    ioctl(ve.fd, IOCTL_SET_REFCOUNT, 0);
     if (ioctl(ve.fd, IOCTL_ENGINE_REQ, 0) < 0)
         goto err_close;
     
@@ -70,15 +69,16 @@ EXPORT void twig_close(struct twig_dev *dev) {
 	if (dev->fd == -1)
 		return;
 
-	ioctl(dev->fd, IOCTL_ENGINE_REL, 0);
-
 	munmap(dev->regs, 2048);
 	dev->regs = NULL;
 
     if (dev->allocator) {
-	    dev->allocator->destroy(dev->allocator);
+        dev->allocator->destroy(dev->allocator);
         dev->allocator = NULL;
     }
+
+    ioctl(dev->fd, IOCTL_DISABLE_VE, 0);
+    ioctl(dev->fd, IOCTL_ENGINE_REL, 0);
 
 	close(dev->fd);
 	dev->fd = -1;
@@ -107,8 +107,8 @@ EXPORT void twig_enable_decoder(struct twig_dev *dev) {
         return;
 
     volatile vetop_reg_mode_sel_t* pVeModeSelect;
-	pthread_mutex_lock(&dev->register_lock);
-	pVeModeSelect = (vetop_reg_mode_sel_t*)(dev->regs + VE_MODE_SELECT);
+    pthread_mutex_lock(&dev->register_lock);
+    pVeModeSelect = (vetop_reg_mode_sel_t*)(dev->regs + VE_MODE_SELECT);
     pVeModeSelect->mode = 1;
     pthread_mutex_unlock(&dev->register_lock);	
 }
@@ -118,10 +118,10 @@ EXPORT void twig_disable_decoder(struct twig_dev *dev) {
         return;
 
     volatile vetop_reg_mode_sel_t* pVeModeSelect;
-	pthread_mutex_lock(&dev->register_lock);
-	pVeModeSelect = (vetop_reg_mode_sel_t*)(dev->regs + VE_MODE_SELECT);
-	pVeModeSelect->mode = 7;
-	pthread_mutex_unlock(&dev->register_lock);
+    pthread_mutex_lock(&dev->register_lock);
+    pVeModeSelect = (vetop_reg_mode_sel_t*)(dev->regs + VE_MODE_SELECT);
+    pVeModeSelect->mode = 7;
+    pthread_mutex_unlock(&dev->register_lock);
 }
 
 EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size) {

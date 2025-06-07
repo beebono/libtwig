@@ -3,13 +3,8 @@
 #include "allwinner/ion.h"
 
 #define PAGE_SIZE                   4096
-#define MEM_OFFSET	                0x40000000UL
 #define ION_IOC_SUNXI_FLUSH_RANGE	5
-#define ION_IOC_SUNXI_FLUSH_ALL		6
 #define ION_IOC_SUNXI_PHYS_ADDR		7
-#define ION_IOC_SUNXI_DMA_COPY		8
-#define ION_IOC_SUNXI_DUMP			9
-#define ION_IOC_SUNXI_POOL_FREE		10
 
 typedef struct {
 	long start;
@@ -40,7 +35,7 @@ static int ion_alloc(int dev_fd, size_t size) {
     };
 
     int ret = ioctl(dev_fd, ION_IOC_ALLOC, &alloc);
-    if (ret < 0) 
+    if (ret < 0)
         return -1;
 
     return alloc.handle;
@@ -62,7 +57,7 @@ static uint32_t ion_get_phys_addr(int dev_fd, int handle) {
     if (ret < 0)
 		return 0x0;
 
-    return phys_data.phys_addr - MEM_OFFSET;
+    return phys_data.phys_addr;
 }
 
 static int ion_map(int dev_fd, int handle) {
@@ -129,7 +124,6 @@ static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, siz
     if (mem->pub_mem.virt == MAP_FAILED)
         goto err_close;
 
-    mem->pub_mem.type = TWIG_MEM_ION;
     return &mem->pub_mem;
 
 err_close:
@@ -158,7 +152,6 @@ static void twig_allocator_ion_mem_flush(twig_allocator_t *allocator, twig_mem_t
     if (!allocator || !pub_mem)
         return;
 
-    struct ion_mem *mem = (struct ion_mem *)pub_mem;
     ion_flush_cache(allocator->dev_fd, pub_mem->virt, pub_mem->size);
 }
 
