@@ -2,7 +2,14 @@
 #include "twig_priv.h"
 #include "allwinner/ion.h"
 
-#define PAGE_SIZE 4096
+#define PAGE_SIZE                   4096
+#define ION_IOC_SUNXI_PHYS_ADDR		7
+
+typedef struct {
+	int handle;
+	unsigned int phys_addr;
+	unsigned int size;
+} sunxi_phys_data;
 
 struct ion_mem {
     twig_mem_t pub_mem;
@@ -32,12 +39,11 @@ static uint32_t ion_get_phys_addr(int dev_fd, int handle) {
     if (dev_fd < 0 || handle < 0)
         return 0x0;
 
-    // FIXME: Sunxi IOCTLs are NOT supported in our driver
     sunxi_phys_data phys_data = {
 		.handle = handle,
 	};
 	struct ion_custom_data custom_data = {
-		.cmd = ION_IOC_SUNXI_PHYS_ADDR, 
+		.cmd = ION_IOC_SUNXI_PHYS_ADDR,
 		.arg = (unsigned long)(&phys_data),
 	};
 
@@ -72,23 +78,6 @@ static void ion_free(int dev_fd, int handle) {
 	};
 
     ioctl(dev_fd, ION_IOC_FREE, &handle_data);
-}
-
-static void ion_flush_cache(int dev_fd, void *addr, size_t size) {
-    if (dev_fd < 0 || addr == NULL || size <= 0)
-        return;
-
-    // FIXME: Sunxi IOCTLs are NOT supported in our driver
-    sunxi_cache_range cache_range = {
-		.start = (long)addr,
-		.end = (long)addr + size,
-	};
-    struct ion_custom_data custom_data = {
-		.cmd = ION_IOC_SUNXI_FLUSH_RANGE,
-		.arg = (unsigned long)(&cache_range),
-	};
-
-    ioctl(dev_fd, ION_IOC_CUSTOM, &custom_data);
 }
 
 static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, size_t size) {
@@ -155,7 +144,7 @@ static void twig_allocator_ion_destroy(twig_allocator_t *allocator) {
 }
 
 twig_allocator_t *twig_allocator_ion_create(void) {
-    struct twig_allocator *allocator = calloc(1, sizeof(*allocator));
+    twig_allocator_t *allocator = calloc(1, sizeof(*allocator));
     if (!allocator)
         return NULL;
 

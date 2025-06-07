@@ -9,6 +9,7 @@
 #ifndef TWIG_PRIV_H_
 #define TWIG_PRIV_H_
 
+#include "twig.h"
 #include "allwinner/cedardev_api.h"
 
 #define DEVICE          "/dev/cedar_dev"
@@ -16,19 +17,19 @@
 
 #define EXPORT __attribute__((visibility ("default")))
 
-typedef struct {
+struct twig_allocator_t {
     twig_mem_t *(*mem_alloc)(twig_allocator_t *allocator, size_t size);
     void (*mem_free)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*mem_flush)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*destroy)(twig_allocator_t *allocator);
     int dev_fd;
-} twig_allocator_t;
+};
 
-typedef struct {
+struct twig_dev_t {
 	int fd;
 	void *regs;
     twig_allocator_t *allocator;
-} twig_dev_t;
+};
 
 twig_allocator_t *twig_allocator_ion_create(void);
 

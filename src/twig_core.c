@@ -3,44 +3,48 @@
 #include "twig_regs.h"
 
 EXPORT twig_dev_t *twig_open(void) {
-    twig_dev_t ve = {
-        .fd = -1,
-        .regs = NULL,
-        .allocator = NULL,
-    };
-
-    ve.fd = open(DEVICE, O_RDWR);
-    if (ve.fd == -1) {
+    twig_dev_t *dev = calloc(1, sizeof(*dev));
+    if (!dev) {
+        fprintf(stderr, "twig_open: failed to allocate device structure\n");
         return NULL;
     }
 
-    if (ioctl(ve.fd, IOCTL_ENGINE_REQ, 0) < 0)
+    dev->fd = -1;
+    dev->regs = NULL;
+    dev->allocator = NULL;
+
+    dev->fd = open(DEVICE, O_RDWR);
+    if (dev->fd == -1) {
+        return NULL;
+    }
+
+    if (ioctl(dev->fd, IOCTL_ENGINE_REQ, 0) < 0)
         goto err_close;
     
-    ioctl(ve.fd, IOCTL_ENABLE_VE, 0);
-    ioctl(ve.fd, IOCTL_SET_VE_FREQ, 180);
-    ioctl(ve.fd, IOCTL_RESET_VE, 0);
+    ioctl(dev->fd, IOCTL_ENABLE_VE, 0);
+    ioctl(dev->fd, IOCTL_SET_VE_FREQ, 180);
+    ioctl(dev->fd, IOCTL_RESET_VE, 0);
 
-    ve.regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, ve.fd, VE_BASE_ADDR);
-    if (ve.regs == MAP_FAILED)
+    dev->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, dev->fd, VE_BASE_ADDR);
+    if (dev->regs == MAP_FAILED)
         goto err_release;
 
-    ve.allocator = twig_allocator_ion_create();
-    if (!ve.allocator)
+    dev->allocator = twig_allocator_ion_create();
+    if (!dev->allocator)
         goto err_unmap;
 
-    return &ve;
+    return dev;
 
 err_unmap:
-    munmap(ve.regs, 2048);
-    ve.regs = NULL;
+    munmap(dev->regs, 2048);
+    dev->regs = NULL;
 
 err_release:
-    ioctl(ve.fd, IOCTL_ENGINE_REL, 0);
+    ioctl(dev->fd, IOCTL_ENGINE_REL, 0);
 
 err_close:
-    close(ve.fd);
-    ve.fd = -1;
+    close(dev->fd);
+    dev->fd = -1;
     return NULL;
 }
 
@@ -88,16 +92,9 @@ EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size) {
     return dev->allocator->mem_alloc(dev->allocator, size);
 }
 
-EXPORT void twig_free_mem(twig_mem_t *mem) {
-    if (!mem || !ve.allocator)
+EXPORT void twig_free_mem(twig_dev_t *dev, twig_mem_t *mem) {
+    if (!mem || !dev->allocator)
         return;
     
-    ve.allocator->mem_free(ve.allocator, mem);
-}
-
-EXPORT void twig_flush_cache(twig_mem_t *mem) {
-    if (!mem || !ve.allocator)
-        return;
-    
-    ve.allocator->mem_flush(ve.allocator, mem);
+    dev->allocator->mem_free(dev->allocator, mem);
 }
