@@ -14,7 +14,7 @@
 #define DEVICE          "/dev/cedar_dev"
 #define VE_BASE_ADDR    0x01c0e000
 
-#define EXPORT __attribute__ ((visibility ("default")))
+#define EXPORT __attribute__((visibility ("default")))
 
 typedef struct {
     twig_mem_t *(*mem_alloc)(twig_allocator_t *allocator, size_t size);

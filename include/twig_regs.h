@@ -33,30 +33,32 @@ static inline uint32_t twig_readl(void *addr) {
 #define START_CODE_DETECT                   12
 #define START_CODE_TERMINATE                13
 
-#define REG_SPS                             0x00
-#define REG_PPS                             0x04
-#define REG_SHS                             0x08
-#define REG_SHS2                            0x0c
-#define REG_SHS_WP                          0x10
-#define REG_SHS_QP                          0x1c
-#define REG_FUNC_CTRL                       0x20
-#define REG_TRIGGER_TYPE                    0x24
-#define REG_FUNC_STATUS                     0x28
-#define REG_CUR_MB_NUM                      0x2c
-#define REG_VLD_BITSTREAM_ADDR              0x30
-#define REG_VLD_OFFSET                      0x34
-#define REG_VLD_BIT_LENGTH                  0x38
-#define REG_VLD_END_ADDR                    0x3c
-#define REG_SHS_RECONSTRUCT_FRM_BUF_INDEX   0x4c
-#define REG_MB_FIELD_INTRA_INFO_ADDR        0x50
-#define REG_MB_NEIGHBOR_INFO_ADDR           0x54
-#define REG_MB_ADDR                         0x60
-#define REG_ERROR_CASE                      0xb8
-#define REG_BASIC_BITS_RETURN_DATA          0xdc
-#define REG_STCD_OFFSET                     0xf0
-#define REG_SRAM_PORT_RW_OFFSET             0xe0
-#define REG_SRAM_PORT_RW_DATA               0xe4
+#define REG_SPS                             0x200
+#define REG_PPS                             0x204
+#define REG_SHS                             0x208
+#define REG_SHS2                            0x20c
+#define REG_SHS_WP                          0x210
+#define REG_SHS_QP                          0x21c
+#define REG_FUNC_CTRL                       0x220
+#define REG_TRIGGER_TYPE                    0x224
+#define REG_FUNC_STATUS                     0x228
+#define REG_CUR_MB_NUM                      0x22c
+#define REG_VLD_BITSTREAM_ADDR              0x230
+#define REG_VLD_OFFSET                      0x234
+#define REG_VLD_BIT_LENGTH                  0x238
+#define REG_VLD_END_ADDR                    0x23c
+#define REG_SHS_RECONSTRUCT_FRM_BUF_INDEX   0x24c
+#define REG_MB_FIELD_INTRA_INFO_ADDR        0x250
+#define REG_MB_NEIGHBOR_INFO_ADDR           0x254
+#define REG_MB_ADDR                         0x260
+#define REG_ERROR_CASE                      0x2b8
+#define REG_BASIC_BITS_RETURN_DATA          0x2dc
+#define REG_STCD_OFFSET                     0x2f0
+#define REG_SRAM_PORT_RW_OFFSET             0x2e0
+#define REG_SRAM_PORT_RW_DATA               0x2e4
 
+            // Structs below provided for reference only, write to or read from registers directly!
+#if 0
 typedef struct {                                                    // 0x00
     volatile unsigned pic_height_mb_minus1                  : 8;	//lsb	PIC_HEIGHT_IN_MAP_UNITS_MINUS1
     volatile unsigned pic_width_mb_minus1                   : 8;	// | 	PIC_WIDTH_IN_MAP_UNITS_MINUS1
@@ -254,5 +256,6 @@ typedef struct {
     volatile unsigned frm_struct		:2;
     volatile unsigned r2				:22;
 } twig_reg_frame_struct_ref_info;
+#endif
 
 #endif

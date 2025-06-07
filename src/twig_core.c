@@ -78,7 +78,7 @@ EXPORT void* twig_get_ve_regs(twig_dev_t *dev) {
     if (!dev)
         return (void*)0x0;
 
-    return (char*)dev->regs + 0x200;
+    return (char*)dev->regs;
 }
 
 EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size) {
