@@ -11,7 +11,6 @@
 
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>

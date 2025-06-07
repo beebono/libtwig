@@ -2,22 +2,12 @@
 #include "twig_priv.h"
 #include "twig_regs.h"
 
-#define DEVICE          "/dev/cedar_dev"
-#define VE_BASE_ADDR    0x01c0e000
-#define VE_MODE_SELECT  0x00
-
-#define EXPORT __attribute__ ((visibility ("default")))
-
-static struct twig_dev {
-	int fd;
-	void *regs;
-    struct twig_allocator *allocator;
-    pthread_mutex_t register_lock;
-} ve = { .fd = -1, .register_lock = PTHREAD_MUTEX_INITIALIZER };
-
-EXPORT struct twig_dev *twig_open(void) {
-    if (ve.fd != -1)
-		return NULL;
+EXPORT twig_dev_t *twig_open(void) {
+    twig_dev_t ve = {
+        .fd = -1,
+        .regs = NULL,
+        .allocator = NULL,
+    };
 
     ve.fd = open(DEVICE, O_RDWR);
     if (ve.fd == -1) {
@@ -54,7 +44,7 @@ err_close:
     return NULL;
 }
 
-EXPORT void twig_close(struct twig_dev *dev) {
+EXPORT void twig_close(twig_dev_t *dev) {
 	if (dev->fd == -1)
 		return;
 
@@ -73,7 +63,7 @@ EXPORT void twig_close(struct twig_dev *dev) {
 	dev->fd = -1;
 }
 
-EXPORT int twig_wait_for_ve(struct twig_dev *dev) {
+EXPORT int twig_wait_for_ve(twig_dev_t *dev) {
     if (!dev)
         return -1;
 
@@ -84,7 +74,7 @@ EXPORT int twig_wait_for_ve(struct twig_dev *dev) {
     return 0;
 }
 
-EXPORT void* twig_get_ve_regs(struct twig_dev *dev) {
+EXPORT void* twig_get_ve_regs(twig_dev_t *dev) {
     if (!dev)
         return (void*)0x0;
 

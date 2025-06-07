@@ -2,20 +2,7 @@
 #include "twig_priv.h"
 #include "allwinner/ion.h"
 
-#define PAGE_SIZE                   4096
-#define ION_IOC_SUNXI_FLUSH_RANGE	5
-#define ION_IOC_SUNXI_PHYS_ADDR		7
-
-typedef struct {
-	long start;
-	long end;
-} sunxi_cache_range;
-
-typedef struct {
-	int handle;
-	unsigned int phys_addr;
-	unsigned int size;
-} sunxi_phys_data;
+#define PAGE_SIZE 4096
 
 struct ion_mem {
     twig_mem_t pub_mem;
@@ -45,11 +32,12 @@ static uint32_t ion_get_phys_addr(int dev_fd, int handle) {
     if (dev_fd < 0 || handle < 0)
         return 0x0;
 
+    // FIXME: Sunxi IOCTLs are NOT supported in our driver
     sunxi_phys_data phys_data = {
 		.handle = handle,
 	};
 	struct ion_custom_data custom_data = {
-		.cmd = ION_IOC_SUNXI_PHYS_ADDR,
+		.cmd = ION_IOC_SUNXI_PHYS_ADDR, 
 		.arg = (unsigned long)(&phys_data),
 	};
 
@@ -90,6 +78,7 @@ static void ion_flush_cache(int dev_fd, void *addr, size_t size) {
     if (dev_fd < 0 || addr == NULL || size <= 0)
         return;
 
+    // FIXME: Sunxi IOCTLs are NOT supported in our driver
     sunxi_cache_range cache_range = {
 		.start = (long)addr,
 		.end = (long)addr + size,

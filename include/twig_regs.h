@@ -17,21 +17,6 @@ static inline uint32_t twig_readl(void *addr) {
     return *(volatile uint32_t *)addr;
 }
 
-#define TWIG_READ_REG(reg_base, reg) \
-    twig_readl((char*)(reg_base) + (reg))
-
-#define TWIG_WRITE_REG(reg_base, reg, val) \
-    twig_writel((val), (char*)(reg_base) + (reg))
-
-#define TWIG_WRITE_STRUCT(reg_base, reg, struct_val) \
-    do { \
-        uint32_t temp_val; \
-        memcpy(&temp_val, &(struct_val), sizeof(uint32_t)); \
-        twig_writel(temp_val, (char*)(reg_base) + (reg)); \
-    } while(0)
-
-#define MACC_VE_VERSION 				    0xF0
-
 #define STARTCODE_DETECT_E                  (1<<25)
 #define EPTB_DETECTION_BY_PASS              (1<<24)
 #define VLD_BUSY                            (1<<8)
