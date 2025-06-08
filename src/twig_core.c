@@ -98,3 +98,20 @@ EXPORT void twig_free_mem(twig_dev_t *dev, twig_mem_t *mem) {
     
     dev->allocator->mem_free(dev->allocator, mem);
 }
+
+EXPORT void twig_flush_cache(twig_dev_t *dev, twig_mem_t *mem) {
+    if (!mem || !dev)
+        return;
+    
+    int ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE_ALL, 0);
+    if (ret < 0) {
+        ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE, 0);
+        if (ret < 0) {
+            printf("Cache flush failed: %d\n", ret);
+        } else {
+            printf("Cache flushed with IOCTL_FLUSH_CACHE\n");
+        }
+    } else {
+        printf("Cache flushed with IOCTL_FLUSH_CACHE_ALL\n");
+    }
+}

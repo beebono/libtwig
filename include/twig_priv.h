@@ -17,10 +17,14 @@
 
 #define EXPORT __attribute__((visibility ("default")))
 
+struct user_iommu_param {
+    int fd;
+    unsigned int iommu_addr;
+};
+
 struct twig_allocator_t {
     twig_mem_t *(*mem_alloc)(twig_allocator_t *allocator, size_t size);
     void (*mem_free)(twig_allocator_t *allocator, twig_mem_t *mem);
-	void (*mem_flush)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*destroy)(twig_allocator_t *allocator);
     int dev_fd;
 };

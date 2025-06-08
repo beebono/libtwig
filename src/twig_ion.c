@@ -126,13 +126,6 @@ static void twig_allocator_ion_mem_free(twig_allocator_t *allocator, twig_mem_t 
     free(mem);
 }
 
-static void twig_allocator_ion_mem_flush(twig_allocator_t *allocator, twig_mem_t *pub_mem) {
-    if (!allocator || !pub_mem)
-        return;
-
-    ion_flush_cache(allocator->dev_fd, pub_mem->virt, pub_mem->size);
-}
-
 static void twig_allocator_ion_destroy(twig_allocator_t *allocator) {
     if (!allocator)
         return;
@@ -156,7 +149,6 @@ twig_allocator_t *twig_allocator_ion_create(void) {
 
     allocator->mem_alloc = twig_allocator_ion_mem_alloc;
     allocator->mem_free = twig_allocator_ion_mem_free;
-    allocator->mem_flush = twig_allocator_ion_mem_flush;
     allocator->destroy = twig_allocator_ion_destroy;
 
     return allocator;

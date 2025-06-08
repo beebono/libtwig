@@ -24,8 +24,8 @@ typedef struct {
     int ion_fd;
 } twig_mem_t;
 
-typedef struct twig_allocator twig_allocator_t;
-typedef struct twig_dev twig_dev_t;
+typedef struct twig_allocator_t twig_allocator_t;
+typedef struct twig_dev_t twig_dev_t;
 
 twig_dev_t* twig_open(void);    
 void twig_close(twig_dev_t *dev);
@@ -34,6 +34,7 @@ void *twig_get_ve_regs(twig_dev_t *dev);
 
 twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size);
 void twig_free_mem(twig_dev_t *dev, twig_mem_t *mem);
+void twig_flush_cache(twig_dev_t *dev, twig_mem_t *mem);
 
 static inline uint32_t twig_get_phys_addr(twig_mem_t *mem) {
     return mem ? mem->phys : 0;
