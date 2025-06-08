@@ -15,14 +15,16 @@ EXPORT twig_dev_t *twig_open(void) {
 
     dev->fd = open(DEVICE, O_RDWR);
     if (dev->fd == -1) {
+        free(dev);
         return NULL;
     }
 
     if (ioctl(dev->fd, IOCTL_ENGINE_REQ, 0) < 0)
         goto err_close;
     
+    // Don't use IOCTL_SET_VE_FREQ here!
+    // Or EVER! It defaults to 432 MHz, plenty!
     ioctl(dev->fd, IOCTL_ENABLE_VE, 0);
-    ioctl(dev->fd, IOCTL_SET_VE_FREQ, 180);
     ioctl(dev->fd, IOCTL_RESET_VE, 0);
 
     dev->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, dev->fd, VE_BASE_ADDR);
