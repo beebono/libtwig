@@ -17,9 +17,13 @@
 #include <fcntl.h>
 #include <stdio.h>
 
+#include <sys/stat.h>
+#include <string.h>
+
 typedef struct {
     void *virt;
 	uint32_t phys;
+    uint32_t iommu_addr;
 	size_t size;
     int ion_fd;
 } twig_mem_t;
@@ -46,6 +50,10 @@ static inline void* twig_get_virt_addr(twig_mem_t *mem) {
 
 static inline int twig_get_ion_fd(twig_mem_t *mem) {
     return mem ? mem->ion_fd : -1;
+}
+
+static inline uint32_t twig_get_iommu_addr(twig_mem_t *mem) {
+    return mem ? mem->iommu_addr : 0;
 }
 
 #endif

@@ -103,15 +103,32 @@ EXPORT void twig_flush_cache(twig_dev_t *dev, twig_mem_t *mem) {
     if (!mem || !dev)
         return;
     
-    int ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE_ALL, 0);
-    if (ret < 0) {
-        ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE, 0);
-        if (ret < 0) {
-            printf("Cache flush failed: %d\n", ret);
-        } else {
-            printf("Cache flushed with IOCTL_FLUSH_CACHE\n");
-        }
-    } else {
-        printf("Cache flushed with IOCTL_FLUSH_CACHE_ALL\n");
+    // Try different cache flush methods
+    struct user_iommu_param iommu_param = {
+        .fd = mem->ion_fd,
+        .iommu_addr = mem->iommu_addr,
+    };
+    
+    // Try IOCTL_FLUSH_CACHE_RANGE first (kernel 5.4+)
+    int ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE_RANGE, &iommu_param);
+    if (ret == 0) {
+        printf("Cache flushed with IOCTL_FLUSH_CACHE_RANGE\n");
+        return;
     }
+    
+    // Fall back to IOCTL_FLUSH_CACHE_ALL
+    ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE_ALL, 0);
+    if (ret == 0) {
+        printf("Cache flushed with IOCTL_FLUSH_CACHE_ALL\n");
+        return;
+    }
+    
+    // Fall back to basic IOCTL_FLUSH_CACHE
+    ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE, 0);
+    if (ret == 0) {
+        printf("Cache flushed with IOCTL_FLUSH_CACHE\n");
+        return;
+    }
+    
+    printf("Warning: All cache flush methods failed: %d\n", ret);
 }

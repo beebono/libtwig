@@ -17,6 +17,11 @@
 
 #define EXPORT __attribute__((visibility ("default")))
 
+struct cache_range {
+    uint64_t start;
+    uint64_t end;
+};
+
 struct user_iommu_param {
     int fd;
     unsigned int iommu_addr;

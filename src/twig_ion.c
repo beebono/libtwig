@@ -54,6 +54,24 @@ static uint32_t ion_get_phys_addr(int dev_fd, int handle) {
     return phys_data.phys_addr;
 }
 
+static uint32_t ion_get_iommu_addr(int cedar_fd, int ion_fd) {
+    if (cedar_fd < 0 || ion_fd < 0)
+        return 0x0;
+
+    struct user_iommu_param iommu_param = {
+        .fd = ion_fd,
+        .iommu_addr = 0,
+    };
+
+    int ret = ioctl(cedar_fd, IOCTL_GET_IOMMU_ADDR, &iommu_param);
+    if (ret < 0) {
+        printf("Failed to get IOMMU address: %d\n", ret);
+        return 0x0;
+    }
+
+    return iommu_param.iommu_addr;
+}
+
 static int ion_map(int dev_fd, int handle) {
     if (dev_fd < 0 || handle < 0)
         return -1;
@@ -80,6 +98,18 @@ static void ion_free(int dev_fd, int handle) {
     ioctl(dev_fd, ION_IOC_FREE, &handle_data);
 }
 
+static void ion_free_iommu_addr(int cedar_fd, int ion_fd) {
+    if (cedar_fd < 0 || ion_fd < 0)
+        return;
+
+    struct user_iommu_param iommu_param = {
+        .fd = ion_fd,
+        .iommu_addr = 0,
+    };
+
+    ioctl(cedar_fd, IOCTL_FREE_IOMMU_ADDR, &iommu_param);
+}
+
 static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, size_t size) {
     struct ion_mem *mem = calloc(1, sizeof(*mem));
 	if (!mem)
@@ -102,6 +132,19 @@ static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, siz
     if (mem->pub_mem.virt == MAP_FAILED)
         goto err_close;
 
+    int cedar_fd = open("/dev/cedar_dev", O_RDWR);
+    if (cedar_fd >= 0) {
+        mem->pub_mem.iommu_addr = ion_get_iommu_addr(cedar_fd, mem->pub_mem.ion_fd);
+        if (!mem->pub_mem.iommu_addr) {
+            printf("Warning: Failed to get IOMMU address, using physical address\n");
+            mem->pub_mem.iommu_addr = mem->pub_mem.phys;
+        }
+        close(cedar_fd);
+    } else {
+        printf("Warning: Cannot open cedar device for IOMMU mapping\n");
+        mem->pub_mem.iommu_addr = mem->pub_mem.phys;
+    }
+
     return &mem->pub_mem;
 
 err_close:
@@ -120,6 +163,14 @@ static void twig_allocator_ion_mem_free(twig_allocator_t *allocator, twig_mem_t 
         return;
 
     struct ion_mem *mem = (struct ion_mem *)pub_mem;
+    
+    // Free IOMMU mapping
+    int cedar_fd = open("/dev/cedar_dev", O_RDWR);
+    if (cedar_fd >= 0) {
+        ion_free_iommu_addr(cedar_fd, pub_mem->ion_fd);
+        close(cedar_fd);
+    }
+    
     munmap(pub_mem->virt, pub_mem->size);
     close(pub_mem->ion_fd);
     ion_free(allocator->dev_fd, mem->handle);
