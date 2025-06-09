@@ -15,7 +15,13 @@
 #include "allwinner/ion.h"
 #include "allwinner/cedardev_api.h"
 
-#define ION_IOC_SUNXI_PHYS_ADDR	7
+#define ION_IOC_SUNXI_FLUSH_RANGE 5
+#define ION_IOC_SUNXI_PHYS_ADDR	  7
+
+struct sunxi_cache_range {
+	long start;
+	long end;
+};
 
 struct sunxi_phys_data {
 	int handle;

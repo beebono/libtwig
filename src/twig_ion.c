@@ -146,12 +146,14 @@ static void twig_allocator_ion_mem_flush(twig_allocator_t *allocator, twig_mem_t
     if (!allocator || !pub_mem)
         return;
 
-    struct user_iommu_param iommu_param = {
-        .fd = pub_mem->ion_fd,
-        .iommu_addr = pub_mem->iommu_addr,
-    };
+    struct sunxi_cache_range range;
+    struct ion_custom_data custom;
+    range.start = (long)pub_mem->virt;
+    range.end = (long)pub_mem->virt + pub_mem->size;
+    custom.cmd = ION_IOC_SUNXI_FLUSH_RANGE;
+    custom.arg = (unsigned long)(&range);
     
-    ioctl(allocator->cedar_fd, IOCTL_FLUSH_CACHE_RANGE, &iommu_param);
+    ioctl(allocator->cedar_fd, ION_IOC_CUSTOM, &custom);
 }
 
 static void twig_allocator_ion_mem_free(twig_allocator_t *allocator, twig_mem_t *pub_mem) {
