@@ -1,15 +1,22 @@
 cmake_minimum_required(VERSION 3.10)
-project(twig VERSION 1.0.0 LANGUAGES C)
+project(twig VERSION 1.8.0 LANGUAGES C)
 
 set(TWIG_SOURCES
     src/twig_core.c
+    src/twig_fbm.c
+    src/twig_h264.c
     src/twig_ion.c
+    src/twig_sbm.c
+    src/twig_video.c
 )
 
 set(TWIG_HEADERS
     include/twig.h
-    include/twig_priv.h
+    include/twig_video.h
     include/twig_regs.h
+    include/priv/twig_priv.h
+    include/priv/twig_mem_priv.h
+    include/priv/twig_video_priv.h
     include/allwinner/cedardev_api.h
     include/allwinner/ion.h
 )
@@ -40,6 +47,7 @@ install(TARGETS twig
 
 install(FILES 
     include/twig.h
+    include/twig_video.h
     include/twig_regs.h
     DESTINATION include
 )

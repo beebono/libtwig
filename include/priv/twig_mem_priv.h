@@ -6,17 +6,13 @@
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */
 
-#ifndef TWIG_PRIV_H_
-#define TWIG_PRIV_H_
+#ifndef TWIG_MEM_PRIV_H_
+#define TWIG_MEM_PRIV_H_
 
 #include "twig.h"
-#include "allwinner/cedardev_api.h"
+#include "allwinner/ion.h"
 
-#define DEVICE                  "/dev/cedar_dev"
-#define VE_BASE_ADDR            0x01c0e000
 #define ION_IOC_SUNXI_PHYS_ADDR	7
-
-#define EXPORT __attribute__((visibility ("default")))
 
 struct sunxi_phys_data {
 	int handle;
@@ -43,12 +39,6 @@ struct twig_allocator_t {
     int dev_fd;
 };
 
-struct twig_dev_t {
-	int fd, active;
-	void *regs;
-    twig_allocator_t *allocator;
-};
-
 twig_allocator_t *twig_allocator_ion_create(twig_dev_t *dev);
 
-#endif
+#endif // TWIG_PRIV_H_

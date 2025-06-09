@@ -9,6 +9,9 @@
 #ifndef TWIG_H_
 #define TWIG_H_
 
+#include "allwinner/cedardev_api.h"
+
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -19,6 +22,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
+
+#define EXPORT __attribute__((visibility ("default")))
 
 typedef struct {
     void *virt;
@@ -41,4 +46,4 @@ twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size);
 void twig_flush_mem(twig_dev_t *dev, twig_mem_t *mem);
 void twig_free_mem(twig_dev_t *dev, twig_mem_t *mem);
 
-#endif
+#endif // TWIG_H_

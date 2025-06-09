@@ -18,7 +18,6 @@ static inline uint32_t twig_readl(void *addr) {
 }
 
 #define VE_REG_BASE                      0x01c0e000
-
 #define VE_CTRL                          0x0000  // Sub-Engine Select and RAM type select
 #define VE_RESET                         0x0004  // Sub-Engines Reset
 #define VE_CYCLES_COUNTER                0x0008  // Clock Cycles counter
@@ -67,7 +66,6 @@ static inline uint32_t twig_readl(void *addr) {
 
 // H.264 Engine Registers                
 #define VE_H264_BASE                     VE_REG_BASE + 0x200  // 0x01c0e200
-
 #define H264_SEQ_HDR                     0x0000
 #define H264_PIC_HDR                     0x0004
 #define H264_SLICE_HDR                   0x0008
@@ -791,4 +789,4 @@ typedef union {
 } h264_mode_lf_delta_reg_t;
 #endif
 
-#endif
+#endif // TWIG_REGS_H_

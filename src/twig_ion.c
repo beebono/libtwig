@@ -1,6 +1,4 @@
-#include "twig.h"
-#include "twig_priv.h"
-#include "allwinner/ion.h"
+#include "twig_mem_priv.h"
 
 struct ion_mem {
     twig_mem_t pub_mem;
