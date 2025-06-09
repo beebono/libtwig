@@ -3,134 +3,108 @@
 #include "twig_regs.h"
 
 EXPORT twig_dev_t *twig_open(void) {
-    twig_dev_t *dev = calloc(1, sizeof(*dev));
-    if (!dev) {
-        fprintf(stderr, "twig_open: failed to allocate device structure\n");
+    twig_dev_t *cedar = calloc(1, sizeof(*cedar));
+    if (!cedar)
+        return NULL;
+
+    cedar->fd = -1;
+    cedar->regs = NULL;
+    cedar->allocator = NULL;
+
+    cedar->fd = open(DEVICE, O_RDWR);
+    if (cedar->fd == -1) {
+        free(cedar);
         return NULL;
     }
 
-    dev->fd = -1;
-    dev->regs = NULL;
-    dev->allocator = NULL;
+    cedar->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, cedar->fd, VE_BASE_ADDR);
+    fprintf(stderr, "VE_H264_STATUS: 0x%08x\n", twig_readl(cedar->regs + H264_STATUS));
 
-    dev->fd = open(DEVICE, O_RDWR);
-    if (dev->fd == -1) {
-        free(dev);
-        return NULL;
-    }
+    ioctl(cedar->fd, IOCTL_SET_REFCOUNT, 0);
 
-    if (ioctl(dev->fd, IOCTL_ENGINE_REQ, 0) < 0)
+    if (ioctl(cedar->fd, IOCTL_ENGINE_REQ, 0) < 0)
         goto err_close;
-    
-    // Don't use IOCTL_SET_VE_FREQ here!
-    // Or EVER! It defaults to 432 MHz, plenty!
-    ioctl(dev->fd, IOCTL_ENABLE_VE, 0);
-    ioctl(dev->fd, IOCTL_RESET_VE, 0);
 
-    dev->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, dev->fd, VE_BASE_ADDR);
-    if (dev->regs == MAP_FAILED)
+    ioctl(cedar->fd, IOCTL_ENABLE_VE, 0);
+    ioctl(cedar->fd, IOCTL_RESET_VE, 0);
+
+    
+    if (cedar->regs == MAP_FAILED)
         goto err_release;
 
-    dev->allocator = twig_allocator_ion_create();
-    if (!dev->allocator)
+    cedar->allocator = twig_allocator_ion_create();
+    if (!cedar->allocator)
         goto err_unmap;
 
-    return dev;
+    return cedar;
 
 err_unmap:
-    munmap(dev->regs, 2048);
-    dev->regs = NULL;
+    munmap(cedar->regs, 2048);
+    cedar->regs = NULL;
 
 err_release:
-    ioctl(dev->fd, IOCTL_ENGINE_REL, 0);
+    ioctl(cedar->fd, IOCTL_ENGINE_REL, 0);
 
 err_close:
-    close(dev->fd);
-    dev->fd = -1;
+    close(cedar->fd);
+    cedar->fd = -1;
     return NULL;
 }
 
-EXPORT void twig_close(twig_dev_t *dev) {
-	if (dev->fd == -1)
+EXPORT void twig_close(twig_dev_t *cedar) {
+	if (cedar->fd == -1)
 		return;
 
-	munmap(dev->regs, 2048);
-	dev->regs = NULL;
+	munmap(cedar->regs, 2048);
+	cedar->regs = NULL;
 
-    if (dev->allocator) {
-        dev->allocator->destroy(dev->allocator);
-        dev->allocator = NULL;
+    if (cedar->allocator) {
+        cedar->allocator->destroy(cedar->allocator);
+        cedar->allocator = NULL;
     }
 
-    ioctl(dev->fd, IOCTL_DISABLE_VE, 0);
-    ioctl(dev->fd, IOCTL_ENGINE_REL, 0);
+    ioctl(cedar->fd, IOCTL_DISABLE_VE, 0);
+    ioctl(cedar->fd, IOCTL_ENGINE_REL, 0);
 
-	close(dev->fd);
-	dev->fd = -1;
+	close(cedar->fd);
+	cedar->fd = -1;
 }
 
-EXPORT int twig_wait_for_ve(twig_dev_t *dev) {
-    if (!dev)
+EXPORT int twig_wait_for_ve(twig_dev_t *cedar) {
+    if (!cedar)
         return -1;
 
-    int ret = ioctl(dev->fd, IOCTL_WAIT_VE_DE, 1);
+    int ret = ioctl(cedar->fd, IOCTL_WAIT_VE_DE, 1);
     if (ret < 0)
         return -1;
 
     return 0;
 }
 
-EXPORT void* twig_get_ve_regs(twig_dev_t *dev) {
-    if (!dev)
+EXPORT void* twig_get_ve_regs(twig_dev_t *cedar) {
+    if (!cedar)
         return (void*)0x0;
 
-    return (char*)dev->regs;
+    return (char*)cedar->regs;
 }
 
-EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *dev, size_t size) {
-    if (!dev || size <= 0 || !dev->allocator)
+EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *cedar, size_t size) {
+    if (!cedar || size <= 0 || !cedar->allocator)
         return NULL;
     
-    return dev->allocator->mem_alloc(dev->allocator, size);
+    return cedar->allocator->mem_alloc(cedar->allocator, size);
 }
 
-EXPORT void twig_free_mem(twig_dev_t *dev, twig_mem_t *mem) {
-    if (!mem || !dev->allocator)
+EXPORT void twig_flush_mem(twig_dev_t *cedar, twig_mem_t *mem) {
+    if (!mem || !cedar)
         return;
     
-    dev->allocator->mem_free(dev->allocator, mem);
+    cedar->allocator->mem_flush(cedar->allocatorm, mem);
 }
 
-EXPORT void twig_flush_cache(twig_dev_t *dev, twig_mem_t *mem) {
-    if (!mem || !dev)
+EXPORT void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem) {
+    if (!mem || !cedar->allocator)
         return;
     
-    // Try different cache flush methods
-    struct user_iommu_param iommu_param = {
-        .fd = mem->ion_fd,
-        .iommu_addr = mem->iommu_addr,
-    };
-    
-    // Try IOCTL_FLUSH_CACHE_RANGE first (kernel 5.4+)
-    int ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE_RANGE, &iommu_param);
-    if (ret == 0) {
-        printf("Cache flushed with IOCTL_FLUSH_CACHE_RANGE\n");
-        return;
-    }
-    
-    // Fall back to IOCTL_FLUSH_CACHE_ALL
-    ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE_ALL, 0);
-    if (ret == 0) {
-        printf("Cache flushed with IOCTL_FLUSH_CACHE_ALL\n");
-        return;
-    }
-    
-    // Fall back to basic IOCTL_FLUSH_CACHE
-    ret = ioctl(dev->fd, IOCTL_FLUSH_CACHE, 0);
-    if (ret == 0) {
-        printf("Cache flushed with IOCTL_FLUSH_CACHE\n");
-        return;
-    }
-    
-    printf("Warning: All cache flush methods failed: %d\n", ret);
+    cedar->allocator->mem_free(cedar->allocator, mem);
 }

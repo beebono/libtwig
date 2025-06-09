@@ -12,14 +12,16 @@
 #include "twig.h"
 #include "allwinner/cedardev_api.h"
 
-#define DEVICE          "/dev/cedar_dev"
-#define VE_BASE_ADDR    0x01c0e000
+#define DEVICE                  "/dev/cedar_dev"
+#define VE_BASE_ADDR            0x01c0e000
+#define ION_IOC_SUNXI_PHYS_ADDR	7
 
 #define EXPORT __attribute__((visibility ("default")))
 
-struct cache_range {
-    uint64_t start;
-    uint64_t end;
+struct sunxi_phys_data {
+	int handle;
+	unsigned int phys_addr;
+	unsigned int size;
 };
 
 struct user_iommu_param {
@@ -27,10 +29,16 @@ struct user_iommu_param {
     unsigned int iommu_addr;
 };
 
+struct cache_range {
+    uint64_t start;
+    uint64_t end;
+};
+
 struct twig_allocator_t {
     twig_mem_t *(*mem_alloc)(twig_allocator_t *allocator, size_t size);
     void (*mem_free)(twig_allocator_t *allocator, twig_mem_t *mem);
 	void (*destroy)(twig_allocator_t *allocator);
+    int cedar_fd;
     int dev_fd;
 };
 
