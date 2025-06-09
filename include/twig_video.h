@@ -28,7 +28,6 @@ typedef struct {
     int skip_b_frames_if_delay;
     int max_output_width;
     int max_output_height;
-    int enable_performance_mode;
 } twig_video_config_t;
 
 typedef struct {

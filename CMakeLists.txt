@@ -3,11 +3,13 @@ project(twig VERSION 1.8.0 LANGUAGES C)
 
 set(TWIG_SOURCES
     src/twig_core.c
-    src/twig_fbm.c
-    src/twig_h264.c
-    src/twig_ion.c
-    src/twig_sbm.c
-    src/twig_video.c
+    src/mem/twig_ion.c
+    src/buffer/twig_fbm.c
+    src/buffer/twig_sbm.c
+    src/vid/twig_video.c
+    src/vid/h264/twig_h264.c
+    src/vid/h264/twig_h264_dec.c
+    src/vid/h264/twig_h264_parse.c
 )
 
 set(TWIG_HEADERS

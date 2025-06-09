@@ -46,8 +46,7 @@ int main(int argc, char *argv[])
         .decode_key_frames_only = 0,
         .skip_b_frames_if_delay = 0,
         .max_output_width = 1920,
-        .max_output_height = 1080,
-        .enable_performance_mode = 0
+        .max_output_height = 1080
     };
     
     twig_video_engine_t *engine = twig_video_engine_create(device, &config, &video_info);

@@ -4,9 +4,8 @@
 static const twig_video_config_t default_video_config = {
     .decode_key_frames_only = 0,
     .skip_b_frames_if_delay = 0,
-    .max_output_width = 1920,
-    .max_output_height = 1080,
-    .enable_performance_mode = 0
+    .max_output_width = 2560,
+    .max_output_height = 1440
 };
 
 static const twig_sbm_config_t default_sbm_config = {
@@ -206,7 +205,7 @@ EXPORT int twig_video_engine_set_sbm(twig_video_engine_t *engine, twig_sbm_confi
         engine->sbm = NULL;
     }
 
-    int ret = twig_sbm_create(engine, sbm_config);
+    int ret = twig_sbm_create(engine, (sbm_config ? sbm_config : default_sbm_config));
     
     pthread_mutex_unlock(&engine->mutex);
     
