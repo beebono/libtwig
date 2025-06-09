@@ -144,13 +144,13 @@ err_free:
     return NULL;
 }
 
-static void twig_allocator_ion_mem_flush(twig_allocator_t *allocator, twig_mem_T *pub_mem) {
+static void twig_allocator_ion_mem_flush(twig_allocator_t *allocator, twig_mem_t *pub_mem) {
     if (!allocator || !pub_mem)
         return;
-    
+
     struct user_iommu_param iommu_param = {
-        .fd = mem->ion_fd,
-        .iommu_addr = mem->iommu_addr,
+        .fd = pub_mem->ion_fd,
+        .iommu_addr = pub_mem->iommu_addr,
     };
     
     ioctl(allocator->cedar_fd, IOCTL_FLUSH_CACHE_RANGE, &iommu_param);
@@ -162,7 +162,7 @@ static void twig_allocator_ion_mem_free(twig_allocator_t *allocator, twig_mem_t 
 
     struct ion_mem *mem = (struct ion_mem*)pub_mem;
 
-    ion_free_iommu_addr(cedar_fd, pub_mem->ion_fd);
+    ion_free_iommu_addr(allocator->cedar_fd, pub_mem->ion_fd);
     munmap(pub_mem->virt, pub_mem->size);
     close(pub_mem->ion_fd);
     ion_free(allocator->dev_fd, mem->handle);
