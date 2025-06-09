@@ -2,6 +2,8 @@
  * libtwig - A streamlined CedarX variant library
  * Pruned for H.264 decoding with easy-to-use buffers
  * 
+ * Public video decoding API
+ *
  * Copyright (C) 2025 Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */
@@ -89,7 +91,6 @@ twig_fbm_t *twig_video_engine_get_fbm(twig_video_engine_t *engine);
 
 twig_result_t twig_video_engine_decode(twig_video_engine_t *engine, int end_of_stream, int decode_key_frames_only,
                                         int skip_b_frames_if_delay, int64_t current_time_us);
-
 
 int twig_sbm_request_buffer(twig_video_engine_t *engine, int require_size, uint8_t **buf, int *buf_size);
 int twig_sbm_add_stream_frame(twig_video_engine_t *engine, twig_stream_frame_t *frame_info);

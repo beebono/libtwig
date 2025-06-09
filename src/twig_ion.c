@@ -1,4 +1,4 @@
-#include "twig_mem_priv.h"
+#include "priv/twig_mem_priv.h"
 
 struct ion_mem {
     twig_mem_t pub_mem;

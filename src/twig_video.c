@@ -1,6 +1,5 @@
-#include "twig_video.h"
-#include "twig_video_priv.h"
-#include "twig_regs.h"
+#include "supp/twig_regs.h"
+#include "priv/twig_video_priv.h"
 
 static const twig_video_config_t default_video_config = {
     .decode_key_frames_only = 0,

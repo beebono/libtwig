@@ -1,5 +1,5 @@
-#include "twig_video_priv.h"
-#include "twig_regs.h"
+#include "supp/twig_regs.h"
+#include "priv/twig_video_priv.h"
 
 #define H264_START_DEC_FRAME    1
 #define H264_END_DEC_FRAME      2

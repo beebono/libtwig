@@ -2,6 +2,8 @@
  * libtwig - A streamlined CedarX variant library
  * Pruned for H.264 decoding with easy-to-use buffers
  * 
+ * Private memory allocation abstraction layer
+ *
  * Copyright (C) 2025 Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */
@@ -11,6 +13,7 @@
 
 #include "twig.h"
 #include "allwinner/ion.h"
+#include "allwinner/cedardev_api.h"
 
 #define ION_IOC_SUNXI_PHYS_ADDR	7
 

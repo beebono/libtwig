@@ -1,4 +1,4 @@
-#include "twig_video_priv.h"
+#include "priv/twig_video_priv.h"
 
 static int fbm_lock(twig_fbm_t *fbm) {
     return pthread_mutex_lock(&fbm->mutex);

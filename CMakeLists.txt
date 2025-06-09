@@ -36,7 +36,7 @@ set_target_properties(twig PROPERTIES
 target_link_libraries(twig PRIVATE pthread)
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/twig.pc.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/twig.pc.in
     ${CMAKE_CURRENT_BINARY_DIR}/twig.pc
     @ONLY
 )
@@ -48,7 +48,6 @@ install(TARGETS twig
 install(FILES 
     include/twig.h
     include/twig_video.h
-    include/twig_regs.h
     DESTINATION include
 )
 

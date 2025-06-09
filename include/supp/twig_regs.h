@@ -2,6 +2,8 @@
  * libtwig - A streamlined CedarX variant library
  * Pruned for H.264 decoding with easy-to-use buffers
  * 
+ * Supplemental Cedar HW register defintions with additional information
+ *
  * Copyright (C) 2025 Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */

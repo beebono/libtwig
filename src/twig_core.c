@@ -1,6 +1,6 @@
-#include "twig_regs.h"
-#include "twig_priv.h"
-#include "twig_mem_priv.h"
+#include "supp/twig_regs.h"
+#include "priv/twig_priv.h"
+#include "priv/twig_mem_priv.h"
 
 EXPORT twig_dev_t *twig_open(void) {
     twig_dev_t *cedar = calloc(1, sizeof(*cedar));

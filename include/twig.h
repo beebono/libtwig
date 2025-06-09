@@ -2,14 +2,14 @@
  * libtwig - A streamlined CedarX variant library
  * Pruned for H.264 decoding with easy-to-use buffers
  * 
+ * Public Cedar direct hardware access API
+ *
  * Copyright (C) 2025 Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */
 
 #ifndef TWIG_H_
 #define TWIG_H_
-
-#include "allwinner/cedardev_api.h"
 
 #include <pthread.h>
 #include <sys/stat.h>
