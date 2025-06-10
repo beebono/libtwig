@@ -11,7 +11,6 @@
 #ifndef TWIG_H_
 #define TWIG_H_
 
-#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -21,7 +20,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <errno.h>
 
 typedef struct {
     void *virt;

@@ -11,10 +11,11 @@ set(TWIG_SOURCES
 
 set(TWIG_HEADERS
     include/twig.h
+    include/twig_bits.h
+    include/twig_dec.h
+    include/twig_regs.h
     include/allwinner/cedardev_api.h
-    include/allwinner/ion.h
-    include/supp/twig_bits.h
-    include/supp/twig_regs.h 
+    include/allwinner/ion.h 
 )
 
 add_library(twig SHARED ${TWIG_SOURCES})

@@ -25,14 +25,14 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Are you on a legacy kernel? (version should be < 5.4)\n")
         return -1;
     }
-    printf("✓ Cedar device opened successfully\n\n");
+    printf("Cedar device opened successfully\n\n");
     
 cleanup:
     printf("=== Cleanup ===\n");
     
     if (device) {
         twig_close(device);
-        printf("✓ Cedar device closed\n");
+        printf("Cedar device closed\n");
     }
     
     printf("\nExample completed successfully!\n");
