@@ -18,7 +18,6 @@ int main(int argc, char *argv[])
 {
     printf("=== libtwig H264 Decoder Usage Example ===\n\n");
     
-    // ===== STEP 1: Device Initialization (like VeInitialize) =====
     printf("Step 1: Opening Cedar device...\n");
     twig_dev_t *device = twig_open();
     if (!device) {

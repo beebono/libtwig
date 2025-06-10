@@ -2,7 +2,7 @@
  * libtwig - A streamlined CedarX variant library
  * Pruned for H.264 decoding with easy-to-use buffers
  * 
- * Supplemental Cedar hardware register defintions with additional information
+ * Supplemental Cedar hardware register defintions and read/write functions
  *
  * Copyright (C) 2025 Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
@@ -11,7 +11,19 @@
 #ifndef TWIG_REGS_H_
 #define TWIG_REGS_H_
 
-#define VE_REG_BASE 0x01c0e000
+#include <stdint.h>
+
+static inline void twig_write_reg(uintptr_t base, uint8_t offset, uint32_t value) {
+    volatile uint32_t *addr = (volatile uint32_t *)(base + offset);
+    *addr = value;
+}
+
+static inline uint32_t twig_read_reg(uintptr_t base, uint8_t offset) {
+    volatile const uint32_t *addr = (volatile const uint32_t *)(base + offset);
+    return *addr;
+}
+
+#define VE_BASE 0x01c0e000
 
 typedef enum {
     VE_CTRL                 = 0x00,  // Sub-Engine Select and RAM type select
@@ -60,7 +72,7 @@ typedef enum {
 #define VE_LUMA_HIST_THR(n)  (0x80 + (n) * 4)
 #define VE_LUMA_HIST_VAL(n)  (0x90 + (n) * 4)
 
-#define H264_BASE (VE_REG_BASE + 0x200)
+#define H264_BASE (VE_BASE + 0x200)
 
 typedef enum {
     H264_SEQ_HDR               = 0x00,
