@@ -2,10 +2,11 @@ cmake_minimum_required(VERSION 3.10)
 project(twig VERSION 1.0.0 LANGUAGES C)
 
 set(TWIG_SOURCES
-    src/twig_core.c
-    src/twig_h264_dec.c
-    src/twig_h264_parse.c
+    src/twig.c
+    src/twig_dec.c
     src/twig_ion.c
+    src/twig_parse.c
+    src/twig_refs.c
 )
 
 set(TWIG_HEADERS
@@ -42,6 +43,7 @@ install(TARGETS twig
 
 install(FILES 
     include/twig.h
+    include/twig_dec.h
     DESTINATION include
 )
 

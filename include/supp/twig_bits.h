@@ -50,6 +50,10 @@ static inline uint32_t twig_get_bits(twig_bitreader_t *br, int n) {
     return result;
 }
 
+static inline uint32_t twig_get_1bit(twig_bitreader_t *br) {
+    return twig_get_bits(br, 1);
+}
+
 static inline uint32_t twig_show_bits(twig_bitreader_t *br, int n) {
     if (n <= 0 || n > 32 || br->bits_left < n)
         return 0;
@@ -72,8 +76,8 @@ static inline void twig_skip_bits(twig_bitreader_t *br, int n) {
     br->bits_left -= n;
 }
 
-static inline uint32_t twig_get_bit(twig_bitreader_t *br) {
-    return twig_get_bits(br, 1);
+static inline void twig_skip_1bit(twig_bitreader_t *br) {
+    twig_skip_bits(br, 1);
 }
 
 static inline uint32_t twig_get_ue_golomb(twig_bitreader_t *br) {
