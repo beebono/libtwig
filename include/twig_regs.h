@@ -13,12 +13,12 @@
 
 #include <stdint.h>
 
-static inline void twig_write_reg(uintptr_t base, uint8_t offset, uint32_t value) {
+static inline void twig_writel(uintptr_t base, uint8_t offset, uint32_t value) {
     volatile uint32_t *addr = (volatile uint32_t *)(base + offset);
     *addr = value;
 }
 
-static inline uint32_t twig_read_reg(uintptr_t base, uint8_t offset) {
+static inline uint32_t twig_readl(uintptr_t base, uint8_t offset) {
     volatile const uint32_t *addr = (volatile const uint32_t *)(base + offset);
     return *addr;
 }

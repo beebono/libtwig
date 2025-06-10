@@ -1,10 +1,10 @@
 #include "twig.h"
-#include "supp/twig_regs.h"
+#include "twig_regs.h"
 
 #define EXPORT __attribute__((visibility ("default")))
 
 struct twig_dev_t {
-	int fd;
+	int fd, active;
 	void *regs;
 };
 
@@ -31,6 +31,7 @@ EXPORT twig_dev_t *twig_open(void) {
         goto err_release;
     }
 
+    cedar->active = 0;
     return cedar;
 
 err_release:
@@ -67,7 +68,19 @@ EXPORT void twig_close(twig_dev_t *cedar) {
 	cedar->fd = -1;
 }
 
-EXPORT int twig_wait_for_ve(twig_dev_t *cedar) {
+void *twig_get_ve_regs(twig_dev_t *cedar, int width_geq2048_flag) {
+    if (!cedar)
+        return NULL;
+
+    if (cedar->active == 0) {
+        twig_writel(cedar->regs, VE_CTRL, 0x00130001 | (width_geq2048_flag ? 0x00200000 : 0x0 ));
+        cedar->active = 1;
+    }
+
+    return cedar->regs;
+}
+
+int twig_wait_for_ve(twig_dev_t *cedar) {
     if (!cedar)
         return -1;
 
@@ -78,27 +91,15 @@ EXPORT int twig_wait_for_ve(twig_dev_t *cedar) {
     return 0;
 }
 
-EXPORT void* twig_get_ve_regs(twig_dev_t *cedar, int width_geq2048_flag) {
-    if (!cedar)
-        return (void*)0x0;
-
-    if (cedar->active == 0) {
-        twig_writel(0x00130001 | (width_geq2048_flag ? 0x00200000 : 0x0 ), cedar->regs + VE_CTRL);
-        cedar->active = 1;
-    }
-
-    return cedar->regs;
-}
-
-EXPORT void twig_put_ve_regs(twig_dev_t *cedar) {
+void twig_put_ve_regs(twig_dev_t *cedar) {
     if (!cedar)
         return;
 
-    twig_writel(0x00130007, cedar->regs + VE_CTRL);
+    twig_writel(cedar->regs, VE_CTRL, 0x00130007);
     cedar->active = 0;
 }
 
-EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *cedar, size_t size) {
+EXPORT twig_mem_t *twig_alloc_mem(twig_dev_t *cedar, size_t size) {
     if (!cedar || cedar->fd < 0 || size <= 0)
         return NULL;
     

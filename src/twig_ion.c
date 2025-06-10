@@ -122,7 +122,7 @@ static void ion_free_iommu_addr(int cedar_fd, int ion_fd) {
     ioctl(cedar_fd, IOCTL_FREE_IOMMU_ADDR, &iommu_param);
 }
 
-static twig_mem_t *twig_ion_mem_alloc(size_t size) {
+twig_mem_t *twig_ion_mem_alloc(size_t size) {
     if (size <= 0)
         return NULL;
 
@@ -175,7 +175,7 @@ err_free:
     return NULL;
 }
 
-static void twig_ion_mem_flush(int cedar_fd, twig_mem_t *pub_mem) {
+void twig_ion_mem_flush(int cedar_fd, twig_mem_t *pub_mem) {
     if (cedar_fd < 0 || !pub_mem)
         return;
 
@@ -189,7 +189,7 @@ static void twig_ion_mem_flush(int cedar_fd, twig_mem_t *pub_mem) {
     ioctl(cedar_fd, ION_IOC_CUSTOM, &custom);
 }
 
-static void twig_ion_mem_free(int cedar_fd, twig_mem_t *pub_mem) {
+void twig_ion_mem_free(int cedar_fd, twig_mem_t *pub_mem) {
     if (cedar_fd < 0 || !pub_mem)
         return;
 

@@ -11,6 +11,13 @@
 #ifndef TWIG_DEC_H_
 #define TWIG_DEC_H_
 
-// TODO: Add decoding API functions
+typedef struct twig_dev_t twig_dev_t;
+typedef struct twig_h264_decoder_t twig_h264_decoder_t;
+
+twig_h264_decoder_t *twig_h264_decoder_init(twig_dev_t *cedar);
+int twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem_t *bitstream_buf,
+                            size_t bitstream_size, twig_mem_t *output_buf);
+void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *output_buf);
+void twig_h264_decoder_destroy(twig_h264_decoder_t* decoder);
 
 #endif // TWIG_DEC_H_

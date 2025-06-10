@@ -33,9 +33,6 @@ typedef struct twig_dev_t twig_dev_t;
 
 twig_dev_t* twig_open(void);    
 void twig_close(twig_dev_t *cedar);
-int twig_wait_for_ve(twig_dev_t *cedar);
-void *twig_get_ve_regs(twig_dev_t *cedar, int flag);
-void twig_put_ve_regs(twig_dev_t *cedar);
 
 twig_mem_t* twig_alloc_mem(size_t size);
 void twig_flush_mem(int cedar_fd, twig_mem_t *mem);
