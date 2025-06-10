@@ -1,8 +1,35 @@
-#include "priv/twig_mem_priv.h"
+#include "twig.h"
+#include "allwinner/ion.h"
+#include "allwinner/cedardev_api.h"
+
+#define ION_IOC_SUNXI_FLUSH_RANGE 5
+#define ION_IOC_SUNXI_PHYS_ADDR	  7
+
+struct sunxi_cache_range {
+	long start;
+	long end;
+};
+
+struct sunxi_phys_data {
+	int handle;
+	unsigned int phys_addr;
+	unsigned int size;
+};
+
+struct user_iommu_param {
+    int fd;
+    unsigned int iommu_addr;
+};
+
+struct cache_range {
+    uint64_t start;
+    uint64_t end;
+};
 
 struct ion_mem {
     twig_mem_t pub_mem;
     int handle;
+    int dev_fd;
 };
 
 static int ion_alloc(int dev_fd, size_t size) {
@@ -95,55 +122,61 @@ static void ion_free_iommu_addr(int cedar_fd, int ion_fd) {
     ioctl(cedar_fd, IOCTL_FREE_IOMMU_ADDR, &iommu_param);
 }
 
-static twig_mem_t *twig_allocator_ion_mem_alloc(twig_allocator_t *allocator, size_t size) {
-    if (!allocator || size <= 0)
+static twig_mem_t *twig_ion_mem_alloc(size_t size) {
+    if (size <= 0)
         return NULL;
 
     struct ion_mem *mem = calloc(1, sizeof(*mem));
 	if (!mem)
 		return NULL;
     
-    size = (size + 4095) & ~(4095);
-    mem->handle = ion_alloc(allocator->dev_fd, size);
-    if (mem->handle < 0)
+    static dev_fd = -1;
+    if (dev_fd < 0)
+        dev_fd = open("/dev/ion", O_RDWR);
+
+    mem->dev_fd = dev_fd;
+    if (mem->dev_fd < 0)
         goto err_free;
 
-    mem->pub_mem.size = size;
-
-    mem->pub_mem.phys = ion_get_phys_addr(allocator->dev_fd, mem->handle);
-    if (!mem->pub_mem.phys)
-        goto err_ion_free;
-    
-    mem->pub_mem.ion_fd = ion_map(allocator->dev_fd, mem->handle);
-    if (mem->pub_mem.ion_fd < 0)
-        goto err_ion_free;
-
-    mem->pub_mem.virt = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.ion_fd, 0);
-    if (mem->pub_mem.virt == MAP_FAILED)
+    mem->pub_mem.size = (size + 4095) & ~(4095);
+    mem->handle = ion_alloc(mem->dev_fd, mem->pub_mem.size);
+    if (mem->handle < 0)
         goto err_close;
 
-    mem->pub_mem.iommu_addr = ion_get_iommu_addr(allocator->cedar_fd, mem->pub_mem.ion_fd);
+    mem->pub_mem.phys = ion_get_phys_addr(mem->dev_fd, mem->handle);
+    mem->pub_mem.ion_fd = ion_map(mem->dev_fd, mem->handle);
+    if (!mem->pub_mem.phys || mem->pub_mem.ion_fd < 0)
+        goto err_free2;
+
+    mem->pub_mem.virt = mmap(NULL, mem->pub_mem.size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.ion_fd, 0);
+    if (mem->pub_mem.virt == MAP_FAILED)
+        goto err_close2;
+
+    mem->pub_mem.iommu_addr = ion_get_iommu_addr(mem->cedar_fd, mem->pub_mem.ion_fd);
     if (!mem->pub_mem.iommu_addr)
         goto err_unmap;
 
     return &mem->pub_mem;
 
 err_unmap:
-    munmap(mem->pub_mem.virt, size);
+    munmap(mem->pub_mem.virt, mem->pub_mem.size);
 
-err_close:
+err_close2:
     close(mem->pub_mem.ion_fd);
 
-err_ion_free:
-    ion_free(allocator->dev_fd, mem->handle);
+err_free2:
+    ion_free(mem->dev_fd, mem->handle);
+
+err_close:
+    close(mem->dev_fd);
 
 err_free:
     free(mem);
     return NULL;
 }
 
-static void twig_allocator_ion_mem_flush(twig_allocator_t *allocator, twig_mem_t *pub_mem) {
-    if (!allocator || !pub_mem)
+static void twig_ion_mem_flush(int cedar_fd, twig_mem_t *pub_mem) {
+    if (cedar_fd < 0 || !pub_mem)
         return;
 
     struct sunxi_cache_range range;
@@ -153,48 +186,18 @@ static void twig_allocator_ion_mem_flush(twig_allocator_t *allocator, twig_mem_t
     custom.cmd = ION_IOC_SUNXI_FLUSH_RANGE;
     custom.arg = (unsigned long)(&range);
     
-    ioctl(allocator->cedar_fd, ION_IOC_CUSTOM, &custom);
+    ioctl(cedar_fd, ION_IOC_CUSTOM, &custom);
 }
 
-static void twig_allocator_ion_mem_free(twig_allocator_t *allocator, twig_mem_t *pub_mem) {
-    if (!allocator || !pub_mem)
+static void twig_ion_mem_free(int cedar_fd, twig_mem_t *pub_mem) {
+    if (cedar_fd < 0 || !pub_mem)
         return;
 
     struct ion_mem *mem = (struct ion_mem*)pub_mem;
 
-    ion_free_iommu_addr(allocator->cedar_fd, pub_mem->ion_fd);
+    ion_free_iommu_addr(cedar_fd, pub_mem->ion_fd);
     munmap(pub_mem->virt, pub_mem->size);
     close(pub_mem->ion_fd);
-    ion_free(allocator->dev_fd, mem->handle);
+    ion_free(mem->dev_fd, mem->handle);
     free(mem);
-}
-
-static void twig_allocator_ion_destroy(twig_allocator_t *allocator) {
-    if (!allocator)
-        return;
-
-    if (allocator->dev_fd != -1) {
-        close(allocator->dev_fd);
-    }
-    free(allocator);
-}
-
-twig_allocator_t *twig_allocator_ion_create(twig_dev_t *cedar) {
-    twig_allocator_t *allocator = calloc(1, sizeof(*allocator));
-    if (!allocator)
-        return NULL;
-
-    allocator->dev_fd = open("/dev/ion", O_RDONLY);
-    if (allocator->dev_fd == -1) {
-        free(allocator);
-        return NULL;
-    }
-
-    allocator->cedar_fd = cedar->fd;
-    allocator->mem_alloc = twig_allocator_ion_mem_alloc;
-    allocator->mem_flush = twig_allocator_ion_mem_flush;
-    allocator->mem_free = twig_allocator_ion_mem_free;
-    allocator->destroy = twig_allocator_ion_destroy;
-
-    return allocator;
 }

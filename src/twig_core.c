@@ -1,18 +1,19 @@
+#include "twig.h"
 #include "supp/twig_regs.h"
-#include "priv/twig_priv.h"
-#include "priv/twig_mem_priv.h"
+
+#define EXPORT __attribute__((visibility ("default")))
+
+struct twig_dev_t {
+	int fd;
+	void *regs;
+};
 
 EXPORT twig_dev_t *twig_open(void) {
     twig_dev_t *cedar = calloc(1, sizeof(*cedar));
     if (!cedar)
         return NULL;
 
-    cedar->fd = -1;
-    cedar->regs = NULL;
-    cedar->allocator = NULL;
-    cedar->active = 0;
-
-    cedar->fd = open(DEVICE, O_RDWR);
+    cedar->fd = open("/dev/cedar_dev", O_RDWR);
     if (cedar->fd == -1)
         goto err_free;
 
@@ -30,15 +31,7 @@ EXPORT twig_dev_t *twig_open(void) {
         goto err_release;
     }
 
-    cedar->allocator = twig_allocator_ion_create(cedar);
-    if (!cedar->allocator)
-        goto err_unmap;
-
     return cedar;
-
-err_unmap:
-    munmap(cedar->regs, 2048);
-    cedar->regs = NULL;
 
 err_release:
     ioctl(cedar->fd, IOCTL_ENGINE_REL, 0);
@@ -106,22 +99,22 @@ EXPORT void twig_put_ve_regs(twig_dev_t *cedar) {
 }
 
 EXPORT twig_mem_t* twig_alloc_mem(twig_dev_t *cedar, size_t size) {
-    if (!cedar || size <= 0 || !cedar->allocator)
+    if (!cedar || cedar->fd < 0 || size <= 0)
         return NULL;
     
-    return cedar->allocator->mem_alloc(cedar->allocator, size);
+    return twig_ion_alloc_mem(size);
 }
 
 EXPORT void twig_flush_mem(twig_dev_t *cedar, twig_mem_t *mem) {
-    if (!mem || !cedar)
+    if (!cedar || cedar->fd < 0 || !mem)
         return;
     
-    cedar->allocator->mem_flush(cedar->allocator, mem);
+    twig_ion_flush_mem(cedar->fd, mem);
 }
 
 EXPORT void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem) {
-    if (!mem || !cedar->allocator)
+    if (!cedar || cedar->fd < 0 || !mem)
         return;
     
-    cedar->allocator->mem_free(cedar->allocator, mem);
+    twig_ion_free_mem(cedar->fd, mem);
 }
