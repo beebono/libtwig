@@ -10,6 +10,12 @@
 #define NAL_IDR_SLICE 5
 #define NAL_SLICE 1
 
+#define SLICE_TYPE_P    0
+#define SLICE_TYPE_B    1
+#define SLICE_TYPE_I    2
+#define SLICE_TYPE_SP   3
+#define SLICE_TYPE_SI   4
+
 typedef struct {
     uint8_t profile_idc;
     uint8_t level_idc;
@@ -30,6 +36,7 @@ typedef struct {
     uint8_t log2_max_frame_num_minus4;
     uint8_t pic_order_cnt_type;
     uint8_t log2_max_pic_order_cnt_lsb_minus4;
+    uint8_t delta_pic_order_always_zero_flag;
     uint8_t max_num_ref_frames;
     uint8_t gaps_in_frame_num_value_allowed_flag;
 } twig_h264_sps_t;
@@ -56,7 +63,30 @@ typedef struct {
 } twig_h264_pps_t;
 
 typedef struct {
-    // TODO: Fill in this struct
+    uint8_t nal_unit_type;
+    uint16_t first_mb_in_slice;
+    uint8_t slice_type;
+    uint8_t pic_parameter_set_id;
+    uint16_t frame_num;
+    uint8_t field_pic_flag;
+    uint8_t bottom_field_pic_flag;
+    uint16_t idr_pic_id;
+    uint32_t pic_order_cnt_lsb;
+    int32_t delta_pic_order_cnt_bottom;
+    int32_t delta_pic_order_cnt[2];
+    uint8_t redundant_pic_cnt;
+    uint8_t direct_spatial_mv_pred_flag;
+    uint8_t num_ref_idx_active_override_flag;
+    uint8_t num_ref_idx_l0_active_minus1;
+    uint8_t num_ref_idx_l1_active_minus1;
+    uint8_t cabac_init_idc;
+    int8_t slice_qp_delta;
+    uint8_t sp_for_switch_flag;
+    int8_t slice_qs_delta;
+    uint8_t disable_deblocking_filter_idc;
+    int8_t slice_alpha_c0_offset_div2;
+    int8_t slice_beta_offset_div2;
+    uint8_t first_slice_in_pic;
 } twig_h264_hdr_t;
 
 struct twig_h264_decoder_t {
@@ -67,7 +97,6 @@ struct twig_h264_decoder_t {
     twig_h264_hdr_t *hdr;
     twig_h264_sps_t *sps;
     twig_h264_pps_t *pps;
-    int sps_ok, pps_ok;
     int is_default_scaling;
 
     uint16_t coded_width, coded_height;
@@ -129,8 +158,7 @@ static int twig_parse_sps(const uint8_t *data, size_t size, twig_h264_sps_t *sps
     if (sps->pic_order_cnt_type == 0) {
         sps->log2_max_pic_order_cnt_lsb_minus4 = twig_get_ue_golomb(&br);
     } else if (sps->pic_order_cnt_type == 1) {
-        // Skip POC type 1, Cedar VE doesn't seem to care?
-        twig_skip_1bit(&br);
+        sps->delta_pic_order_always_zero_flag = twig_get_1bit(&br);
         twig_get_se_golomb(&br);
         twig_get_se_golomb(&br);
         uint32_t num_ref_frames_in_poc_cycle = twig_get_ue_golomb(&br);
@@ -208,6 +236,150 @@ static int twig_parse_pps(const uint8_t *data, size_t size, twig_h264_pps_t *pps
     return 0;
 }
 
+static int twig_h264_parse_hdr(const uint8_t *data, size_t size, twig_h264_decoder_t *decoder) {
+    if (!data || size < 2 || !decoder)
+        return -1;
+
+    twig_h264_sps_t *sps = decoder->sps;
+    twig_h264_pps_t *pps = decoder->pps;
+    twig_h264_hdr_t *hdr = decoder->hdr;
+    
+    twig_bitreader_t br;
+    twig_bitreader_init(&br, data + 1, size - 1);
+    
+    hdr->nal_unit_type = data[0] & 0x1f;
+    
+    hdr->first_mb_in_slice = twig_get_ue_golomb(&br);
+    hdr->first_slice_in_pic = (hdr->first_mb_in_slice == 0) ? 1 : 0;
+    
+    uint32_t slice_type = twig_get_ue_golomb(&br);
+    if (slice_type > 9)
+        return -1;
+    hdr->slice_type = (slice_type > 4) ? slice_type - 5 : slice_type;
+    
+    hdr->pic_parameter_set_id = twig_get_ue_golomb(&br);
+    if (hdr->pic_parameter_set_id >= 256)
+        return -1;
+    
+    hdr->frame_num = twig_get_bits(&br, sps->log2_max_frame_num_minus4 + 4);
+    
+    if (!sps->frame_mbs_only_flag) {
+        hdr->field_pic_flag = twig_get_1bit(&br);
+        if (hdr->field_pic_flag)
+            hdr->bottom_field_pic_flag = twig_get_1bit(&br);
+    }
+    
+    if (hdr->nal_unit_type == 5)
+        hdr->idr_pic_id = twig_get_ue_golomb(&br);
+    
+    if (sps->pic_order_cnt_type == 0) {
+        hdr->pic_order_cnt_lsb = twig_get_bits(&br, sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
+        if (pps->bottom_field_pic_order_in_frame_present_flag && !hdr->field_pic_flag)
+            hdr->delta_pic_order_cnt_bottom = twig_get_se_golomb(&br);
+    }
+    
+    if (sps->pic_order_cnt_type == 1 && !sps->delta_pic_order_always_zero_flag) {
+        hdr->delta_pic_order_cnt[0] = twig_get_se_golomb(&br);
+        if (pps->bottom_field_pic_order_in_frame_present_flag && !hdr->field_pic_flag)
+            hdr->delta_pic_order_cnt[1] = twig_get_se_golomb(&br);
+    }
+    
+    if (pps->redundant_pic_cnt_present_flag)
+        hdr->redundant_pic_cnt = twig_get_ue_golomb(&br);
+    
+    if (hdr->slice_type == SLICE_TYPE_B)
+        hdr->direct_spatial_mv_pred_flag = twig_get_1bit(&br);
+    
+    hdr->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
+    hdr->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
+    
+    if (hdr->slice_type == SLICE_TYPE_P || hdr->slice_type == SLICE_TYPE_SP || hdr->slice_type == SLICE_TYPE_B) {
+        hdr->num_ref_idx_active_override_flag = twig_get_1bit(&br);
+        if (hdr->num_ref_idx_active_override_flag) {
+            hdr->num_ref_idx_l0_active_minus1 = twig_get_ue_golomb(&br);
+            if (hdr->slice_type == SLICE_TYPE_B)
+                hdr->num_ref_idx_l1_active_minus1 = twig_get_ue_golomb(&br);
+        }
+    }
+    
+    // Skip ref pic list modifications for now
+    if (hdr->slice_type != SLICE_TYPE_I && hdr->slice_type != SLICE_TYPE_SI) {
+        if (twig_get_1bit(&br)) {
+            uint32_t modification_of_pic_nums_idc;
+            do {
+                modification_of_pic_nums_idc = twig_get_ue_golomb(&br);
+                if (modification_of_pic_nums_idc == 0 || modification_of_pic_nums_idc == 1)
+                    twig_get_ue_golomb(&br);
+                else if (modification_of_pic_nums_idc == 2)
+                    twig_get_ue_golomb(&br);
+            } while (modification_of_pic_nums_idc != 3);
+        }
+    }
+    
+    if (hdr->slice_type == SLICE_TYPE_B) {
+        if (twig_get_1bit(&br)) { // ref_pic_list_modification_flag_l1
+            uint32_t modification_of_pic_nums_idc;
+            do {
+                modification_of_pic_nums_idc = twig_get_ue_golomb(&br);
+                if (modification_of_pic_nums_idc == 0 || modification_of_pic_nums_idc == 1)
+                    twig_get_ue_golomb(&br);
+                else if (modification_of_pic_nums_idc == 2)
+                    twig_get_ue_golomb(&br);
+            } while (modification_of_pic_nums_idc != 3);
+        }
+    }
+    
+    // Skip weighted prediction tables for now
+    if ((pps->weighted_pred_flag && (hdr->slice_type == SLICE_TYPE_P || hdr->slice_type == SLICE_TYPE_SP)) ||
+        (pps->weighted_bipred_idc == 1 && hdr->slice_type == SLICE_TYPE_B)) {
+        // Skip pred_weight_table() - complex to implement
+        fprintf(stderr, "Weighted prediction not implemented\n");
+        return -1;
+    }
+    
+    // Skip dec_ref_pic_marking() for reference frames
+    if (hdr->nal_unit_type == 5) {
+        twig_get_1bit(&br);
+        twig_get_1bit(&br);
+    } else if ((data[0] >> 5) & 0x3) {
+        if (twig_get_1bit(&br)) {
+            uint32_t memory_management_control_operation;
+            do {
+                memory_management_control_operation = twig_get_ue_golomb(&br);
+                if (memory_management_control_operation == 1 || memory_management_control_operation == 3)
+                    twig_get_ue_golomb(&br);
+                if (memory_management_control_operation == 2)
+                    twig_get_ue_golomb(&br);
+                if (memory_management_control_operation == 3 || memory_management_control_operation == 6)
+                    twig_get_ue_golomb(&br);
+                if (memory_management_control_operation == 4)
+                    twig_get_ue_golomb(&br);
+            } while (memory_management_control_operation != 0);
+        }
+    }
+    
+    if (pps->entropy_coding_mode_flag && hdr->slice_type != SLICE_TYPE_I && hdr->slice_type != SLICE_TYPE_SI)
+        hdr->cabac_init_idc = twig_get_ue_golomb(&br);
+    
+    hdr->slice_qp_delta = twig_get_se_golomb(&br);
+    
+    if (hdr->slice_type == SLICE_TYPE_SP || hdr->slice_type == SLICE_TYPE_SI) {
+        if (hdr->slice_type == SLICE_TYPE_SP)
+            hdr->sp_for_switch_flag = twig_get_1bit(&br);
+        hdr->slice_qs_delta = twig_get_se_golomb(&br);
+    }
+    
+    if (pps->deblocking_filter_control_present_flag) {
+        hdr->disable_deblocking_filter_idc = twig_get_ue_golomb(&br);
+        if (hdr->disable_deblocking_filter_idc != 1) {
+            hdr->slice_alpha_c0_offset_div2 = twig_get_se_golomb(&br);
+            hdr->slice_beta_offset_div2 = twig_get_se_golomb(&br);
+        }
+    }
+    
+    return 0;
+}
+
 EXPORT twig_h264_decoder_t *twig_h264_decoder_init(twig_dev_t *cedar, int max_width) {
     if (!cedar || max_width <= 0)
         return NULL;
@@ -225,8 +397,8 @@ EXPORT twig_h264_decoder_t *twig_h264_decoder_init(twig_dev_t *cedar, int max_wi
     
     decoder->hdr = NULL;
     decoder->extra_buf = NULL;
-    decoder->last_valid_sps_id = -1;
-    decoder->last_valid_pps_id = -1;
+    decoder->coded_width = -1;
+    decoder->coded_height = -1;
     return decoder;
 }
 
@@ -242,6 +414,8 @@ static int *twig_h264_decode_params(twig_h264_decoder_t *decoder, twig_mem_t *bi
     const uint8_t *data = (const uint8_t *)bitstream_buf->virt;
     size_t len = bitstream_buf->size;
     size_t pos = 0;
+    int sps_ok = 0;
+    int pps_ok = 0;
     while (pos < len) {
         pos = twig_find_start_code(data, len, pos) + 3;
         if (pos < 0 || pos >= len)
@@ -254,7 +428,7 @@ static int *twig_h264_decode_params(twig_h264_decoder_t *decoder, twig_mem_t *bi
         switch (nal_type) {
             case NAL_SPS:
                 if (twig_parse_sps(data + pos, nal_size, decoder->sps) == 0) {
-                    decoder->sps_ok = 1;
+                    sps_ok = 1;
                     decoder->coded_width = (decoder->sps->pic_width_in_mbs_minus1 + 1) * 16;
                     decoder->coded_height = (decoder->sps->pic_height_in_map_units_minus1 + 1) * 16;
                     if (!decoder->sps->frame_mbs_only_flag)
@@ -263,10 +437,10 @@ static int *twig_h264_decode_params(twig_h264_decoder_t *decoder, twig_mem_t *bi
                 break;
             case NAL_PPS:
                 if (twig_parse_pps(data + pos, nal_size, decoder->pps) == 0)
-                    decoder->pps_ok = 1;
+                    pps_ok = 1;
                 break;
             default:
-                if (decoder->sps_ok == 1 && decoder->pps_ok == 1)
+                if (sps_ok == 1 && pps_ok == 1)
                     return 0;
         }
     }
@@ -347,7 +521,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         int next_start = twig_find_start_code(data, len, pos + 1);
         size_t nal_size = (next_start > 0) ? (next_start - pos) : (len - pos);
         if (nal_type == 1 || nal_type == 5) {
-            twig_h264_parse_hdr(data + pos, nal_size, decoder->hdr); // TODO: Add this function
+            twig_h264_parse_hdr(data + pos, nal_size, decoder);
             pos = next_start; // Advance past NAL to slice data
             twig_writel(h264_base, H264_CTRL, (0x1 << 25) | (0x1 << 10));
             twig_writel(h264_base, H264_VLD_LEN, (len - pos) * 8);
@@ -416,8 +590,27 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
     return output_buf;
 }
 
+EXPORT int twig_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *height) {
+    if (width){
+        if (decoder->coded_width == -1) {
+            fprintf(stderr, "ERROR: No valid frame width yet, but it was requested!\n")
+            return -1;
+        }
+        *width = decoder->coded_width;
+    }
+    if (height){
+        if (decoder->coded_height == -1) {
+            fprintf(stderr, "ERROR: No valid frame height yet, but it was requested!\n")
+            return -1;
+        }
+        *height = decoder->coded_height;
+    }
+    return 0;
+}
+
 EXPORT void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *output_buf) {
     // Dummy function to trigger reference management later on
+    // Probably move this to twig_refs.c
 }
 
 EXPORT void twig_h264_decoder_destroy(twig_h264_decoder_t* decoder) {
