@@ -17,8 +17,7 @@
 typedef struct {
     const uint8_t *data;
     size_t size;
-    int bit_pos;
-    int bits_left;
+    int bit_pos, bits_left;
 } twig_bitreader_t;
 
 static inline void twig_bitreader_init(twig_bitreader_t *br, const uint8_t *data, size_t size) {

@@ -6,14 +6,12 @@
 #define ION_IOC_SUNXI_PHYS_ADDR	  7
 
 struct sunxi_cache_range {
-	long start;
-	long end;
+	long start, end;
 };
 
 struct sunxi_phys_data {
 	int handle;
-	unsigned int phys_addr;
-	unsigned int size;
+	unsigned int phys_addr, size;
 };
 
 struct user_iommu_param {
@@ -22,14 +20,12 @@ struct user_iommu_param {
 };
 
 struct cache_range {
-    uint64_t start;
-    uint64_t end;
+    uint64_t start, end;
 };
 
 struct ion_mem {
     twig_mem_t pub_mem;
-    int handle;
-    int dev_fd;
+    int handle, dev_fd;
 };
 
 static int ion_alloc(int dev_fd, size_t size) {
@@ -143,9 +139,9 @@ twig_mem_t *twig_ion_mem_alloc(size_t size) {
     if (mem->handle < 0)
         goto err_close;
 
-    mem->pub_mem.phys = ion_get_phys_addr(mem->dev_fd, mem->handle);
+    mem->pub_mem.phys_addr = ion_get_phys_addr(mem->dev_fd, mem->handle);
     mem->pub_mem.ion_fd = ion_map(mem->dev_fd, mem->handle);
-    if (!mem->pub_mem.phys || mem->pub_mem.ion_fd < 0)
+    if (!mem->pub_mem.phys_addr || mem->pub_mem.ion_fd < 0)
         goto err_free2;
 
     mem->pub_mem.virt = mmap(NULL, mem->pub_mem.size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.ion_fd, 0);

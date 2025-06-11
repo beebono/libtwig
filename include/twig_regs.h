@@ -72,7 +72,7 @@ typedef enum {
 #define VE_LUMA_HIST_THR(n)  (0x80 + (n) * 4)
 #define VE_LUMA_HIST_VAL(n)  (0x90 + (n) * 4)
 
-#define H264_BASE (VE_BASE + 0x200)
+#define H264_OFFSET 0x200
 
 typedef enum {
     H264_SEQ_HDR               = 0x00,
@@ -84,7 +84,7 @@ typedef enum {
     H264_QINDEX                = 0x18,
     H264_QP                    = 0x1c,
     H264_CTRL                  = 0x20,
-    H264_TRIG                  = 0x24,
+    H264_TRIGGER               = 0x24,
     H264_STATUS                = 0x28,
     H264_CUR_MBNUM             = 0x2c,
     H264_VLD_ADDR              = 0x30,

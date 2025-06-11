@@ -11,30 +11,29 @@
 #ifndef TWIG_H_
 #define TWIG_H_
 
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <unistd.h>
-#include <string.h>
-#include <fcntl.h>
-#include <stdio.h>
 
 typedef struct {
     void *virt;
-	uint32_t phys;
-    uint32_t iommu_addr;
+	uint32_t phys_addr, iommu_addr;
 	size_t size;
     int ion_fd;
 } twig_mem_t;
 
 typedef struct twig_dev_t twig_dev_t;
 
-twig_dev_t* twig_open(void);    
+twig_dev_t *twig_open(void);    
 void twig_close(twig_dev_t *cedar);
 
-twig_mem_t* twig_alloc_mem(size_t size);
+twig_mem_t *twig_alloc_mem(size_t size);
 void twig_flush_mem(int cedar_fd, twig_mem_t *mem);
 void twig_free_mem(int cedar_fd, twig_mem_t *mem);
 
