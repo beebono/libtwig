@@ -122,7 +122,7 @@ static int twig_find_start_code(const uint8_t *data, int size, int start) {
 static int twig_parse_sps(const uint8_t *data, size_t size, twig_h264_sps_t *sps) {
     twig_bitreader_t br;
 
-    twig_bitreader_init(&br, data + 5, size - 5);
+    twig_bitreader_init(&br, data + 1, size - 1);
     
     sps->profile_idc = twig_get_bits(&br, 8);
     twig_skip_bits(&br, 8);
@@ -172,10 +172,13 @@ static int twig_parse_sps(const uint8_t *data, size_t size, twig_h264_sps_t *sps
     sps->pic_width_in_mbs_minus1 = twig_get_ue_golomb(&br);
     sps->pic_height_in_map_units_minus1 = twig_get_ue_golomb(&br);
     sps->frame_mbs_only_flag = twig_get_1bit(&br);
-    sps->pic_height_in_mbs_minus1 = (sps->pic_height_in_map_units_minus1 + 1) * (sps->frame_mbs_only_flag ? 1 : 2) - 1;
 
-    if (!sps->frame_mbs_only_flag)
+    if (!sps->frame_mbs_only_flag) {
         sps->mb_adaptive_frame_field_flag = twig_get_1bit(&br);
+        sps->pic_height_in_mbs_minus1 = (sps->pic_height_in_map_units_minus1 + 1) * 2 - 1;
+    } else {
+        sps->pic_height_in_mbs_minus1 = sps->pic_height_in_map_units_minus1;
+    }
     
     sps->direct_8x8_inference_flag = twig_get_1bit(&br);
     sps->frame_cropping_flag = twig_get_1bit(&br);
@@ -193,7 +196,7 @@ static int twig_parse_sps(const uint8_t *data, size_t size, twig_h264_sps_t *sps
 static int twig_parse_pps(const uint8_t *data, size_t size, twig_h264_pps_t *pps) {
     twig_bitreader_t br;
     
-    twig_bitreader_init(&br, data + 5, size - 5);
+    twig_bitreader_init(&br, data + 1, size - 1);
     
     pps->pic_parameter_set_id = twig_get_ue_golomb(&br);
     pps->seq_parameter_set_id = twig_get_ue_golomb(&br);
@@ -430,9 +433,7 @@ static int twig_h264_decode_params(twig_h264_decoder_t *decoder, twig_mem_t *bit
                 if (twig_parse_sps(data + pos, nal_size, decoder->sps) == 0) {
                     sps_ok = 1;
                     decoder->coded_width = (decoder->sps->pic_width_in_mbs_minus1 + 1) * 16;
-                    decoder->coded_height = (decoder->sps->pic_height_in_map_units_minus1 + 1) * 16;
-                    if (!decoder->sps->frame_mbs_only_flag)
-                        decoder->coded_height *= 2;
+                    decoder->coded_height = (decoder->sps->pic_height_in_mbs_minus1 + 1) * 16;
                 }
                 break;
             case NAL_PPS:
