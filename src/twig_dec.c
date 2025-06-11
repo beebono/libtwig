@@ -317,7 +317,7 @@ static int twig_h264_parse_hdr(const uint8_t *data, size_t size, twig_h264_decod
     }
     
     if (hdr->slice_type == SLICE_TYPE_B) {
-        if (twig_get_1bit(&br)) { // ref_pic_list_modification_flag_l1
+        if (twig_get_1bit(&br)) {
             uint32_t modification_of_pic_nums_idc;
             do {
                 modification_of_pic_nums_idc = twig_get_ue_golomb(&br);
@@ -337,7 +337,7 @@ static int twig_h264_parse_hdr(const uint8_t *data, size_t size, twig_h264_decod
         return -1;
     }
     
-    // Skip dec_ref_pic_marking() for reference frames
+    // Skip dec_ref_pic_marking() for now
     if (hdr->nal_unit_type == 5) {
         twig_get_1bit(&br);
         twig_get_1bit(&br);
@@ -520,71 +520,72 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         uint8_t nal_type = nal_header & 0x1f;
         int next_start = twig_find_start_code(data, len, pos + 1);
         size_t nal_size = (next_start > 0) ? (next_start - pos) : (len - pos);
-        if (nal_type == 1 || nal_type == 5) {
-            twig_h264_parse_hdr(data + pos, nal_size, decoder);
-            pos = next_start; // Advance past NAL to slice data
-            twig_writel(h264_base, H264_CTRL, (0x1 << 25) | (0x1 << 10));
-            twig_writel(h264_base, H264_VLD_LEN, (len - pos) * 8);
-            twig_writel(h264_base, H264_VLD_OFFSET, pos * 8);
-            twig_writel(h264_base, H264_VLD_END, bitstream_addr + bitstream_buf->size - 1);
-            twig_writel(h264_base, H264_VLD_ADDR, (bitstream_addr & 0x0ffffff0) | (bitstream_addr >> 28) | (0x7 << 28));
-            twig_writel(h264_base, H264_TRIGGER, 0x7);
+        if (nal_type != 1 && nal_type != 5)
+            continue;
+        
+        twig_h264_parse_hdr(data + pos, nal_size, decoder);
 
-            // TODO: Call to reference frame list management again, this time for I-Types
+        twig_writel(h264_base, H264_CTRL, (0x1 << 25) | (0x1 << 10));
+        twig_writel(h264_base, H264_VLD_LEN, (len - pos) * 8);
+        twig_writel(h264_base, H264_VLD_OFFSET, pos * 8);
+        twig_writel(h264_base, H264_VLD_END, bitstream_addr + bitstream_buf->size - 1);
+        twig_writel(h264_base, H264_VLD_ADDR, (bitstream_addr & 0x0ffffff0) | (bitstream_addr >> 28) | (0x7 << 28));
+        twig_writel(h264_base, H264_TRIGGER, 0x7);
 
-            // TODO: And again for B-Type
+        // TODO: Call to reference frame list management again, this time for I-Types
 
-            twig_writel(h264_base, H264_SEQ_HDR, (0x1 << 19)
-                      | ((decoder->sps->frame_mbs_only_flag & 0x1) << 18)
-                      | ((decoder->sps->mb_adaptive_frame_field_flag & 0x1) << 17)
-                      | ((decoder->sps->direct_8x8_inference_flag & 0x1) << 16)
-                      | ((decoder->sps->pic_width_in_mbs_minus1 & 0xff) << 8)
-                      | ((decoder->sps->pic_height_in_mbs_minus1 & 0xff) << 0));
+        // TODO: And again for B-Type
 
-            twig_writel(h264_base, H264_PIC_HDR,
-                        ((decoder->pps->entropy_coding_mode_flag & 0x1) << 15)
-                      | ((decoder->pps->num_ref_idx_l0_default_active_minus1 & 0x1f) << 10)
-                      | ((decoder->pps->num_ref_idx_l1_default_active_minus1 & 0x1f) << 5) 
-                      | ((decoder->pps->weighted_pred_flag & 0x1) << 4)
-                      | ((decoder->pps->weighted_bipred_idc & 0x3) << 2)
-                      | ((decoder->pps->constrained_intra_pred_flag & 0x1) << 1)
-                      | ((decoder->pps->transform_8x8_mode_flag & 0x1) << 0));
+        twig_writel(h264_base, H264_SEQ_HDR, (0x1 << 19)
+                  | ((decoder->sps->frame_mbs_only_flag & 0x1) << 18)
+                  | ((decoder->sps->mb_adaptive_frame_field_flag & 0x1) << 17)
+                  | ((decoder->sps->direct_8x8_inference_flag & 0x1) << 16)
+                  | ((decoder->sps->pic_width_in_mbs_minus1 & 0xff) << 8)
+                  | ((decoder->sps->pic_height_in_mbs_minus1 & 0xff) << 0));
 
-            twig_writel(h264_base, H264_SLICE_HDR,
-                        (((decoder->hdr->first_mb_in_slice % (decoder->sps->pic_width_in_mbs_minus1 + 1)) & 0xff) << 24)
-                      | (((decoder->hdr->first_mb_in_slice / (decoder->sps->pic_height_in_mbs_minus1 + 1)) & 0xff)
-                          * (decoder->sps->mb_adaptive_frame_field_flag ? 2 : 1) << 16)
-                      | (((nal_ref_idc != 0 ? 0x1 : 0x0) & 0x1) << 12)
-                      | ((decoder->hdr->slice_type & 0xf) << 8)
-                      | ((decoder->hdr->first_slice_in_pic ? 0x1 : 0x0) << 5)
-                      | ((decoder->hdr->field_pic_flag & 0x1) << 4)
-                      | ((decoder->hdr->bottom_field_pic_flag & 0x1) << 3)
-                      | ((decoder->hdr->direct_spatial_mv_pred_flag & 0x1) << 2)
-                      | ((decoder->hdr->cabac_init_idc & 0x3) << 0));
+        twig_writel(h264_base, H264_PIC_HDR,
+                    ((decoder->pps->entropy_coding_mode_flag & 0x1) << 15)
+                  | ((decoder->pps->num_ref_idx_l0_default_active_minus1 & 0x1f) << 10)
+                  | ((decoder->pps->num_ref_idx_l1_default_active_minus1 & 0x1f) << 5) 
+                  | ((decoder->pps->weighted_pred_flag & 0x1) << 4)
+                  | ((decoder->pps->weighted_bipred_idc & 0x3) << 2)
+                  | ((decoder->pps->constrained_intra_pred_flag & 0x1) << 1)
+                  | ((decoder->pps->transform_8x8_mode_flag & 0x1) << 0));
 
-            twig_writel(h264_base, H264_SLICE_HDR2,
-                        ((decoder->hdr->num_ref_idx_l0_active_minus1 & 0x1f) << 24)
-                      | ((decoder->hdr->num_ref_idx_l1_active_minus1 & 0x1f) << 16)
-                      | ((decoder->hdr->num_ref_idx_active_override_flag & 0x1) << 12)
-                      | ((decoder->hdr->disable_deblocking_filter_idc & 0x3) << 8)
-                      | ((decoder->hdr->slice_alpha_c0_offset_div2 & 0xf) << 4)
-                      | ((decoder->hdr->slice_beta_offset_div2 & 0xf) << 0));
+        twig_writel(h264_base, H264_SLICE_HDR,
+                    (((decoder->hdr->first_mb_in_slice % (decoder->sps->pic_width_in_mbs_minus1 + 1)) & 0xff) << 24)
+                  | (((decoder->hdr->first_mb_in_slice / (decoder->sps->pic_height_in_mbs_minus1 + 1)) & 0xff)
+                      * (decoder->sps->mb_adaptive_frame_field_flag ? 2 : 1) << 16)
+                  | (((nal_ref_idc != 0 ? 0x1 : 0x0) & 0x1) << 12)
+                  | ((decoder->hdr->slice_type & 0xf) << 8)
+                  | ((decoder->hdr->first_slice_in_pic ? 0x1 : 0x0) << 5)
+                  | ((decoder->hdr->field_pic_flag & 0x1) << 4)
+                  | ((decoder->hdr->bottom_field_pic_flag & 0x1) << 3)
+                  | ((decoder->hdr->direct_spatial_mv_pred_flag & 0x1) << 2)
+                  | ((decoder->hdr->cabac_init_idc & 0x3) << 0));
 
-            twig_writel(h264_base, H264_QP,
-                        ((decoder->is_default_scaling & 0x1) << 24)
-                      | ((decoder->pps->second_chroma_qp_index_offset & 0x3f) << 16)
-                      | ((decoder->pps->chroma_qp_index_offset & 0x3f) << 8)
-                      | ((decoder->pps->pic_init_qp_minus26 + 26 + decoder->hdr->slice_qp_delta) & 0x3f) << 0);
+        twig_writel(h264_base, H264_SLICE_HDR2,
+                    ((decoder->hdr->num_ref_idx_l0_active_minus1 & 0x1f) << 24)
+                  | ((decoder->hdr->num_ref_idx_l1_active_minus1 & 0x1f) << 16)
+                  | ((decoder->hdr->num_ref_idx_active_override_flag & 0x1) << 12)
+                  | ((decoder->hdr->disable_deblocking_filter_idc & 0x3) << 8)
+                  | ((decoder->hdr->slice_alpha_c0_offset_div2 & 0xf) << 4)
+                  | ((decoder->hdr->slice_beta_offset_div2 & 0xf) << 0));
 
-            twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS)); // Clears status by writing the same bits the status already holds
-            twig_writel(h264_base, H264_CTRL, twig_readl(h264_base, H264_CTRL) | 0x7); // Enables interrupt on the next start code detected...
-            twig_writel(h264_base, H264_TRIGGER, 0x8); // DECODE NOW BABYYYYY          // ...which basically makes it a stop code?
-            if (twig_wait_for_ve(decoder->cedar) < 0)
-                fprintf(stderr, "VE hit interrupt immediately or timed out during decode!\n");
+        twig_writel(h264_base, H264_QP,
+                    ((decoder->is_default_scaling & 0x1) << 24)
+                  | ((decoder->pps->second_chroma_qp_index_offset & 0x3f) << 16)
+                  | ((decoder->pps->chroma_qp_index_offset & 0x3f) << 8)
+                  | ((decoder->pps->pic_init_qp_minus26 + 26 + decoder->hdr->slice_qp_delta) & 0x3f) << 0);
 
-            twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS));
-            pos = (twig_readl(h264_base, H264_VLD_OFFSET) / 8) - 3;
-        }
+        twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS)); // Clears status by writing the same bits the status already holds
+        twig_writel(h264_base, H264_CTRL, twig_readl(h264_base, H264_CTRL) | 0x7); // Enables interrupt on the next start code detected...
+        twig_writel(h264_base, H264_TRIGGER, 0x8); // DECODE NOW BABYYYYY          // ...which basically makes it a stop code?
+        if (twig_wait_for_ve(decoder->cedar) < 0)
+            fprintf(stderr, "VE error or timeout during decode!\n");
+
+        twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS));
+        pos = (twig_readl(h264_base, H264_VLD_OFFSET) / 8) - 3;
     }
     twig_put_ve_regs(decoder->cedar);
     return output_buf;
