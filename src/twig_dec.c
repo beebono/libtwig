@@ -106,7 +106,7 @@ void *twig_get_ve_regs(twig_dev_t *cedar, int flag);
 int twig_wait_for_ve(twig_dev_t *cedar);
 void twig_put_ve_regs(twig_dev_t *cedar);
 
-static int twig_find_start_code(const uint32_t *data, int size, int start) {
+static int twig_find_start_code(const uint8_t *data, int size, int start) {
 	int pos, leading_zeros = 0;
 	for (pos = start; pos < size; pos++) {
 		if (data[pos] == 0x00)
@@ -114,7 +114,7 @@ static int twig_find_start_code(const uint32_t *data, int size, int start) {
 		else if (data[pos] == 0x01 && leading_zeros >= 2)
 			return pos - 2;
 		else
-			zeros = 0;
+			leading_zeros = 0;
 	}
 	return -1;
 }
@@ -402,9 +402,9 @@ EXPORT twig_h264_decoder_t *twig_h264_decoder_init(twig_dev_t *cedar, int max_wi
     return decoder;
 }
 
-static int *twig_h264_decode_params(twig_h264_decoder_t *decoder, twig_mem_t *bitstream_buf) {
+static int twig_h264_decode_params(twig_h264_decoder_t *decoder, twig_mem_t *bitstream_buf) {
     if (!decoder || !bitstream_buf)
-        return NULL;
+        return -1;
 
     decoder->sps = calloc(1, sizeof(twig_h264_sps_t));
     decoder->pps = calloc(1, sizeof(twig_h264_pps_t));
@@ -466,20 +466,20 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         return NULL;
 
     int extra_buf_size = 327680;
-    if (max_width >= 2048) {
+    if (decoder->coded_width >= 2048) {
         extra_buf_size += (decoder->sps->pic_width_in_mbs_minus1 + 32) * 192;
         extra_buf_size = (extra_buf_size + 4095) & ~4095;
         extra_buf_size += (decoder->sps->pic_width_in_mbs_minus1 + 64) * 80;
     }
-    decoder->extra_buf = twig_alloc_mem(extra_buf_size);
+    decoder->extra_buf = twig_alloc_mem(decoder->cedar, extra_buf_size);
     if (!decoder->extra_buf) {
         free(decoder->hdr);
         return NULL;
     }
 
-    twig_mem_t *output_buf = twig_alloc_mem(decoder->coded_width * decoder->coded_height * 3 / 2);
+    twig_mem_t *output_buf = twig_alloc_mem(decoder->cedar, decoder->coded_width * decoder->coded_height * 3 / 2);
     if (!output_buf) {
-        twig_free_mem(decoder->extra_buf);
+        twig_free_mem(decoder->cedar, decoder->extra_buf);
         free(decoder->hdr);
         return NULL;
     }
@@ -490,7 +490,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
     uint32_t extra_buffer = decoder->extra_buf->iommu_addr;
     twig_writel(h264_base, H264_FIELD_INTRA_INFO_BUF, extra_buffer);
     twig_writel(h264_base, H264_NEIGHBOR_INFO_BUF, extra_buffer + 0x48000);
-    if (coded_width >= 2048) {
+    if (decoder->coded_width >= 2048) {
         int size = (decoder->sps->pic_width_in_mbs_minus1 + 32) * 192;
         size = (size + 4095) & ~4095;
         twig_writel(h264_base, H264_FIELD_INTRA_INFO_BUF, 0x5);
@@ -526,7 +526,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
             twig_writel(h264_base, H264_CTRL, (0x1 << 25) | (0x1 << 10));
             twig_writel(h264_base, H264_VLD_LEN, (len - pos) * 8);
             twig_writel(h264_base, H264_VLD_OFFSET, pos * 8);
-            twig_writel(h264_base, H264_VLD_END, bitstream_addr + bitstream_buf->size - 1)
+            twig_writel(h264_base, H264_VLD_END, bitstream_addr + bitstream_buf->size - 1);
             twig_writel(h264_base, H264_VLD_ADDR, (bitstream_addr & 0x0ffffff0) | (bitstream_addr >> 28) | (0x7 << 28));
             twig_writel(h264_base, H264_TRIGGER, 0x7);
 
@@ -593,14 +593,14 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
 EXPORT int twig_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *height) {
     if (width){
         if (decoder->coded_width == -1) {
-            fprintf(stderr, "ERROR: No valid frame width yet, but it was requested!\n")
+            fprintf(stderr, "ERROR: No valid frame width yet, but it was requested!\n");
             return -1;
         }
         *width = decoder->coded_width;
     }
     if (height){
         if (decoder->coded_height == -1) {
-            fprintf(stderr, "ERROR: No valid frame height yet, but it was requested!\n")
+            fprintf(stderr, "ERROR: No valid frame height yet, but it was requested!\n");
             return -1;
         }
         *height = decoder->coded_height;

@@ -5,7 +5,6 @@ set(TWIG_SOURCES
     src/twig.c
     src/twig_dec.c
     src/twig_ion.c
-    src/twig_parse.c
     src/twig_refs.c
 )
 

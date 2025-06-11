@@ -33,8 +33,8 @@ typedef struct twig_dev_t twig_dev_t;
 twig_dev_t *twig_open(void);    
 void twig_close(twig_dev_t *cedar);
 
-twig_mem_t *twig_alloc_mem(size_t size);
-void twig_flush_mem(int cedar_fd, twig_mem_t *mem);
-void twig_free_mem(int cedar_fd, twig_mem_t *mem);
+twig_mem_t *twig_alloc_mem(twig_dev_t *cedar, size_t size);
+void twig_flush_mem(twig_dev_t *cedar, twig_mem_t *mem);
+void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem);
 
 #endif // TWIG_H_

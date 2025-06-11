@@ -4,6 +4,8 @@
 
 #define ION_IOC_SUNXI_FLUSH_RANGE 5
 #define ION_IOC_SUNXI_PHYS_ADDR	  7
+#define IOCTL_GET_IOMMU_ADDR      0x502
+#define IOCTL_FREE_IOMMU_ADDR     0x503
 
 struct sunxi_cache_range {
 	long start, end;
@@ -118,7 +120,7 @@ static void ion_free_iommu_addr(int cedar_fd, int ion_fd) {
     ioctl(cedar_fd, IOCTL_FREE_IOMMU_ADDR, &iommu_param);
 }
 
-twig_mem_t *twig_ion_mem_alloc(size_t size) {
+twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size) {
     if (size <= 0)
         return NULL;
 
@@ -126,7 +128,7 @@ twig_mem_t *twig_ion_mem_alloc(size_t size) {
 	if (!mem)
 		return NULL;
     
-    static dev_fd = -1;
+    static int dev_fd = -1;
     if (dev_fd < 0)
         dev_fd = open("/dev/ion", O_RDWR);
 
@@ -148,7 +150,7 @@ twig_mem_t *twig_ion_mem_alloc(size_t size) {
     if (mem->pub_mem.virt == MAP_FAILED)
         goto err_close2;
 
-    mem->pub_mem.iommu_addr = ion_get_iommu_addr(mem->cedar_fd, mem->pub_mem.ion_fd);
+    mem->pub_mem.iommu_addr = ion_get_iommu_addr(cedar_fd, mem->pub_mem.ion_fd);
     if (!mem->pub_mem.iommu_addr)
         goto err_unmap;
 
@@ -171,7 +173,7 @@ err_free:
     return NULL;
 }
 
-void twig_ion_mem_flush(int cedar_fd, twig_mem_t *pub_mem) {
+void twig_ion_flush_mem(int cedar_fd, twig_mem_t *pub_mem) {
     if (cedar_fd < 0 || !pub_mem)
         return;
 
@@ -185,7 +187,7 @@ void twig_ion_mem_flush(int cedar_fd, twig_mem_t *pub_mem) {
     ioctl(cedar_fd, ION_IOC_CUSTOM, &custom);
 }
 
-void twig_ion_mem_free(int cedar_fd, twig_mem_t *pub_mem) {
+void twig_ion_free_mem(int cedar_fd, twig_mem_t *pub_mem) {
     if (cedar_fd < 0 || !pub_mem)
         return;
 

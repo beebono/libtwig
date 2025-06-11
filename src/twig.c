@@ -1,5 +1,6 @@
 #include "twig.h"
 #include "twig_regs.h"
+#include "allwinner/cedardev_api.h"
 
 #define EXPORT __attribute__((visibility ("default")))
 
@@ -7,6 +8,10 @@ struct twig_dev_t {
 	int fd, active;
 	void *regs;
 };
+
+twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size);
+void twig_ion_flush_mem(int cedar_fd, twig_mem_t *pub_mem);
+void twig_ion_free_mem(int cedar_fd, twig_mem_t *pub_mem);
 
 EXPORT twig_dev_t *twig_open(void) {
     twig_dev_t *cedar = calloc(1, sizeof(*cedar));
@@ -25,7 +30,7 @@ EXPORT twig_dev_t *twig_open(void) {
     ioctl(cedar->fd, IOCTL_SET_VE_FREQ, 216);
     ioctl(cedar->fd, IOCTL_RESET_VE, 0);
 
-    cedar->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, cedar->fd, VE_REG_BASE);
+    cedar->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, cedar->fd, VE_BASE);
     if (cedar->regs == MAP_FAILED) {
         perror("mmap regs: MAP_FAILED");
         goto err_release;
@@ -46,34 +51,12 @@ err_free:
     return NULL;
 }
 
-EXPORT void twig_close(twig_dev_t *cedar) {
-	if (cedar->fd == -1)
-		return;
-
-    if (cedar->active)
-        twig_put_ve_regs(cedar);
-
-	munmap(cedar->regs, 2048);
-	cedar->regs = NULL;
-
-    if (cedar->allocator) {
-        cedar->allocator->destroy(cedar->allocator);
-        cedar->allocator = NULL;
-    }
-
-    ioctl(cedar->fd, IOCTL_ENGINE_REL, 0);
-    ioctl(cedar->fd, IOCTL_DISABLE_VE, 0);
-
-	close(cedar->fd);
-	cedar->fd = -1;
-}
-
 void *twig_get_ve_regs(twig_dev_t *cedar, int width_geq2048_flag) {
     if (!cedar)
         return NULL;
 
     if (cedar->active == 0) {
-        twig_writel(cedar->regs, VE_CTRL, 0x00130001 | (width_geq2048_flag ? 0x00200000 : 0x0 ));
+        twig_writel((uintptr_t)cedar->regs, VE_CTRL, 0x00130001 | (width_geq2048_flag ? 0x00200000 : 0x0 ));
         cedar->active = 1;
     }
 
@@ -95,7 +78,7 @@ void twig_put_ve_regs(twig_dev_t *cedar) {
     if (!cedar)
         return;
 
-    twig_writel(cedar->regs, VE_CTRL, 0x00130007);
+    twig_writel((uintptr_t)cedar->regs, VE_CTRL, 0x00130007);
     cedar->active = 0;
 }
 
@@ -103,7 +86,7 @@ EXPORT twig_mem_t *twig_alloc_mem(twig_dev_t *cedar, size_t size) {
     if (!cedar || cedar->fd < 0 || size <= 0)
         return NULL;
     
-    return twig_ion_alloc_mem(size);
+    return twig_ion_alloc_mem(cedar->fd, size);
 }
 
 EXPORT void twig_flush_mem(twig_dev_t *cedar, twig_mem_t *mem) {
@@ -118,4 +101,21 @@ EXPORT void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem) {
         return;
     
     twig_ion_free_mem(cedar->fd, mem);
+}
+
+EXPORT void twig_close(twig_dev_t *cedar) {
+	if (cedar->fd == -1)
+		return;
+
+    if (cedar->active)
+        twig_put_ve_regs(cedar);
+
+	munmap(cedar->regs, 2048);
+	cedar->regs = NULL;
+
+    ioctl(cedar->fd, IOCTL_ENGINE_REL, 0);
+    ioctl(cedar->fd, IOCTL_DISABLE_VE, 0);
+
+	close(cedar->fd);
+	cedar->fd = -1;
 }

@@ -82,7 +82,7 @@ static inline void twig_skip_1bit(twig_bitreader_t *br) {
 static inline uint32_t twig_get_ue_golomb(twig_bitreader_t *br) {
     int leading_zeros = 0;
 
-    while (twig_get_bit(br) == 0) {
+    while (twig_get_1bit(br) == 0) {
         leading_zeros++;
         if (leading_zeros > 31)
             return 0;
