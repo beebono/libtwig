@@ -52,6 +52,28 @@ static void dump_yuv_frame(const char *filename, twig_mem_t *frame_buf, uint16_t
     printf("First frame dumped to %s (%dx%d YUV420)\n", filename, width, height);
 }
 
+static int check_frame_content(twig_mem_t *frame_buf, uint16_t width, uint16_t height) {
+    uint8_t *data = (uint8_t *)frame_buf->virt;
+    int total_bytes = width * height * 3 / 2;
+    int non_zero_count = 0;
+    
+    for (int i = 0; i < total_bytes; i++) {
+        if (data[i] != 0) {
+            non_zero_count++;
+        }
+    }
+    
+    printf("Frame content check: %d/%d bytes non-zero (%.1f%%)\n", 
+           non_zero_count, total_bytes, (100.0 * non_zero_count) / total_bytes);
+    
+    if (non_zero_count > 0) {
+        printf("Sample values: 0x%02x 0x%02x 0x%02x 0x%02x\n", 
+               data[0], data[1], data[width], data[width+1]);
+    }
+    
+    return non_zero_count;
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         print_usage(argv[0]);
@@ -119,6 +141,9 @@ int main(int argc, char *argv[]) {
         int width, height;
         if (twig_get_frame_res(decoder, &width, &height) == 0)
             printf("Frame dimensions: %dx%d\n", width, height);
+
+        if (check_frame_content(output_frame, width, height) == 0)
+            printf("WARNING: Frame appears to be all zeros!\n");
         
         if (output_file)
             dump_yuv_frame(output_file, output_frame, width, height);

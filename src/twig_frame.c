@@ -293,8 +293,9 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
                 frame = output_frame;
                 is_output = 1;
                 output_placed = 1;
+            } else if (frame->state == FRAME_STATE_DECODER_HELD && frame->is_reference) {
             } else {
-                frame = NULL;
+                    frame = NULL;
             }
         }
         
