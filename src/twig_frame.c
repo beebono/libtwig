@@ -9,41 +9,6 @@
 #define FIELD_BOTTOM_REF             0x2
 #define FIELD_BOTH_REF               0x3
 
-#define MAX_FRAME_POOL_SIZE          20
-
-typedef enum {
-    SLICE_TYPE_P,
-    SLICE_TYPE_B,
-    SLICE_TYPE_I,
-    SLICE_TYPE_SP,
-    SLICE_TYPE_SI
-} twig_slice_type_t;
-
-typedef enum {
-    FRAME_STATE_FREE,
-    FRAME_STATE_DECODER_HELD,
-    FRAME_STATE_APP_HELD
-} twig_frame_state_t;
-
-typedef struct {
-    twig_mem_t *buffer;
-    twig_mem_t *extra_data;
-    twig_frame_state_t state;
-    int frame_idx;
-    int frame_num;
-    int poc;
-    int is_reference;
-    int is_long_term;
-} twig_frame_t;
-
-typedef struct {
-    twig_frame_t frames[MAX_FRAME_POOL_SIZE];
-    int allocated_count;
-    int frame_width;
-    int frame_height;
-    size_t frame_size;
-} twig_frame_pool_t;
-
 int twig_frame_pool_init(twig_frame_pool_t *pool, int width, int height) {
     if (!pool || width <= 0 || height <= 0)
         return -1;
@@ -355,7 +320,7 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
             twig_writel(h264_base, H264_RAM_WRITE_DATA, 0);
         }
     }
-    twig_writel(h264_base, H264_OUTPUT_FRAME_IDX, output_frame->frame_idx);
+    twig_writel(h264_base, H264_OUTPUT_FRAME_INDEX, output_frame->frame_idx);
 }
 
 

@@ -10,14 +10,6 @@
 #define NAL_IDR_SLICE 5
 #define NAL_SLICE 1
 
-typedef enum {
-    SLICE_TYPE_P,
-    SLICE_TYPE_B,
-    SLICE_TYPE_I,
-    SLICE_TYPE_SP,
-    SLICE_TYPE_SI
-} twig_slice_type_t;
-
 typedef struct {
     uint8_t profile_idc;
     uint8_t level_idc;
@@ -98,12 +90,10 @@ typedef struct {
     int frame_num_offset;
 } twig_ref_state_t;
 
-typedef struct twig_frame_pool_t twig_frame_pool_t;
-typedef struct twig_frame_t twig_frame_t;
-
 struct twig_h264_decoder_t {
     twig_dev_t *cedar;
     void *ve_regs;
+    twig_mem_t *extra_buf;
     twig_h264_hdr_t *hdr;
     twig_h264_sps_t *sps;
     twig_h264_pps_t *pps;
@@ -125,7 +115,7 @@ void twig_put_ve_regs(twig_dev_t *cedar);
 
 int twig_frame_pool_init(twig_frame_pool_t *pool, int width, int height);
 twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, uint16_t pwimm1);
-twig_frame_t twig_send_frame(twig_frame_t *frame, int frame_num, int poc, int is_reference);
+twig_mem_t *twig_send_frame(twig_frame_t *frame, int frame_num, int poc, int is_reference);
 void twig_mark_frame_return(twig_frame_pool_t *pool, twig_mem_t *buffer, twig_dev_t *cedar);
 void twig_mark_frame_unref(twig_frame_t *frame);
 void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar);
@@ -592,7 +582,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
 
     if (decoder->pool_initialized == 0 || decoder->last_width != decoder->coded_width || decoder->last_height != decoder->coded_height) {
         if (decoder->pool_initialized == 1)
-            twig_frame_pool_cleanup(decoder->frame_pool, decoder->cedar);
+            twig_frame_pool_cleanup(&decoder->frame_pool, decoder->cedar);
 
         if (twig_frame_pool_init(&decoder->frame_pool, decoder->coded_width, decoder->coded_height) < 0)
             return NULL;
@@ -667,9 +657,9 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         twig_build_ref_lists_from_pool(&decoder->frame_pool, decoder->hdr->slice_type, ref_list0, &l0_count, ref_list1, &l1_count, current_poc);
         // TODO: Apply ref_pic_list_modification() if present in slice header
         if (decoder->hdr->slice_type != SLICE_TYPE_I && decoder->hdr->slice_type != SLICE_TYPE_SI)
-            twig_write_ref_list0_registers(decoder->cedar, decoder->ve_regs, decoder->frame_pool, ref_list0, l0_count);
+            twig_write_ref_list0_registers(decoder->cedar, decoder->ve_regs, &decoder->frame_pool, ref_list0, l0_count);
         if (decoder->hdr->slice_type == SLICE_TYPE_B)
-            twig_write_ref_list1_registers(decoder->cedar, decoder->ve_regs, decoder->frame_pool, ref_list1, l1_count);
+            twig_write_ref_list1_registers(decoder->cedar, decoder->ve_regs, &decoder->frame_pool, ref_list1, l1_count);
 
         twig_writel(h264_base, H264_CTRL, (0x1 << 25) | (0x1 << 10));
         twig_writel(h264_base, H264_VLD_LEN, (len - pos) * 8);
@@ -762,7 +752,7 @@ EXPORT void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *out
     if (!decoder || !output_buf)
         return;
 
-    twig_mark_frame_return(decoder->frame_pool, output_buf, decoder->cedar);
+    twig_mark_frame_return(&decoder->frame_pool, output_buf, decoder->cedar);
 }
 
 EXPORT void twig_h264_decoder_destroy(twig_h264_decoder_t* decoder) {
