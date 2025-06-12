@@ -134,9 +134,9 @@ int main(int argc, char *argv[]) {
     twig_mem_t *output_frame = twig_h264_decode_frame(decoder, bitstream_buf);
     
     if (output_frame) {
-        printf("Decode SUCCESS! Got output from decoder!\n");
-        printf("Frame buffer address: %p (virtual), 0x%x (ION)\n", 
-               output_frame->virt, output_frame->iommu_addr);
+        printf("Got output from decoder, testing results...\n");
+        printf("Frame buffer address: %p (virtual), 0x%x (physical), 0x%x (IOMMU)\n", 
+               output_frame->virt, output_frame->phys_addr, output_frame->iommu_addr);
         
         int width, height;
         if (twig_get_frame_res(decoder, &width, &height) == 0)

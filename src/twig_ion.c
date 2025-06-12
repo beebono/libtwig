@@ -173,18 +173,18 @@ err_free:
     return NULL;
 }
 
-void twig_ion_flush_mem(int cedar_fd, twig_mem_t *pub_mem) {
-    if (cedar_fd < 0 || !pub_mem)
+void twig_ion_flush_mem(twig_mem_t *pub_mem) {
+    if (!pub_mem)
         return;
 
-    struct sunxi_cache_range range;
-    struct ion_custom_data custom;
-    range.start = (long)pub_mem->virt;
-    range.end = (long)pub_mem->virt + pub_mem->size;
-    custom.cmd = ION_IOC_SUNXI_FLUSH_RANGE;
-    custom.arg = (unsigned long)(&range);
+    struct ion_mem *mem = (struct ion_mem*)pub_mem;
+
+    struct sunxi_cache_range range = {
+        .start = (long)pub_mem->virt,
+        .end = (long)pub_mem->virt + pub_mem->size
+    };
     
-    ioctl(cedar_fd, ION_IOC_CUSTOM, &custom);
+    ioctl(mem->dev_fd, ION_IOC_SUNXI_FLUSH_RANGE, &range);
 }
 
 void twig_ion_free_mem(int cedar_fd, twig_mem_t *pub_mem) {

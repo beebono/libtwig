@@ -10,7 +10,7 @@ struct twig_dev_t {
 };
 
 twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size);
-void twig_ion_flush_mem(int cedar_fd, twig_mem_t *pub_mem);
+void twig_ion_flush_mem(twig_mem_t *pub_mem);
 void twig_ion_free_mem(int cedar_fd, twig_mem_t *pub_mem);
 
 EXPORT twig_dev_t *twig_open(void) {
@@ -23,12 +23,14 @@ EXPORT twig_dev_t *twig_open(void) {
         goto err_free;
 
     ioctl(cedar->fd, IOCTL_ENABLE_VE, 0);
-
     if (ioctl(cedar->fd, IOCTL_ENGINE_REQ, 0) < 0)
         goto err_close;
 
     ioctl(cedar->fd, IOCTL_SET_VE_FREQ, 216);
     ioctl(cedar->fd, IOCTL_RESET_VE, 0);
+
+    int refcount = 0;
+    ioctl(cedar->fd, IOCTL_SET_REFCOUNT, &refcount);
 
     cedar->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, cedar->fd, VE_BASE);
     if (cedar->regs == MAP_FAILED) {
@@ -93,11 +95,11 @@ EXPORT twig_mem_t *twig_alloc_mem(twig_dev_t *cedar, size_t size) {
     return twig_ion_alloc_mem(cedar->fd, size);
 }
 
-EXPORT void twig_flush_mem(twig_dev_t *cedar, twig_mem_t *mem) {
-    if (!cedar || cedar->fd < 0 || !mem)
+EXPORT void twig_flush_mem(twig_mem_t *mem) {
+    if (!mem)
         return;
     
-    twig_ion_flush_mem(cedar->fd, mem);
+    twig_ion_flush_mem(mem);
 }
 
 EXPORT void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem) {
@@ -111,7 +113,7 @@ EXPORT void twig_close(twig_dev_t *cedar) {
 	if (cedar->fd == -1)
 		return;
 
-    if (cedar->active)
+    if (cedar->active == 1)
         twig_put_ve_regs(cedar);
 
 	munmap(cedar->regs, 2048);

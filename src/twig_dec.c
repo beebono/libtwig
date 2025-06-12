@@ -573,6 +573,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
     if (!decoder || !bitstream_buf)
         return NULL;
 
+    twig_flush_mem(bitstream_buf);
     if (twig_h264_decode_params(decoder, bitstream_buf) < 0)
         return NULL;
 

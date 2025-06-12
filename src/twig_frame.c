@@ -96,6 +96,7 @@ twig_mem_t *twig_send_frame(twig_frame_t *frame, int frame_num, int poc, int is_
     frame->poc = poc;
     frame->is_reference = is_reference;
     frame->state = FRAME_STATE_APP_HELD;
+    twig_flush_mem(frame->buffer);
     return frame->buffer;
 }
 
@@ -312,7 +313,7 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
             int frame_poc = is_output ? output_poc : frame->poc;
 
             twig_writel(h264_base, H264_RAM_WRITE_DATA, (uint16_t)frame_poc);
-            twig_writel(h264_base, H264_RAM_WRITE_DATA, (uint16_t)frame_poc);
+            twig_writel(h264_base, H264_RAM_WRITE_DATA, (uint16_t)frame_poc);   
             twig_writel(h264_base, H264_RAM_WRITE_DATA, 0 << 8);
             twig_writel(h264_base, H264_RAM_WRITE_DATA, luma_addr);
             twig_writel(h264_base, H264_RAM_WRITE_DATA, chroma_addr); 
