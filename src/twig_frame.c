@@ -123,7 +123,7 @@ twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, ui
     return NULL;
 }
 
-twig_frame_t twig_send_frame(twig_frame_t *frame, int frame_num, int poc, int is_reference) {
+twig_mem_t *twig_send_frame(twig_frame_t *frame, int frame_num, int poc, int is_reference) {
     if (!frame)
         return NULL;
         
@@ -131,7 +131,7 @@ twig_frame_t twig_send_frame(twig_frame_t *frame, int frame_num, int poc, int is
     frame->poc = poc;
     frame->is_reference = is_reference;
     frame->state = FRAME_STATE_APP_HELD;
-    return frame;
+    return frame->buffer;
 }
 
 void twig_mark_frame_return(twig_frame_pool_t *pool, twig_mem_t *buffer, twig_dev_t *cedar) {

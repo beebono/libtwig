@@ -639,7 +639,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         return NULL;
 
     int current_poc = twig_calculate_poc(decoder);
-    twig_write_framebuffer_list(decoder->cedar, decoder->ve_regs, decoder->pool, output_frame, int output_poc);
+    twig_write_framebuffer_list(decoder->cedar, decoder->ve_regs, &decoder->frame_pool, output_frame, current_poc);
 
     uint8_t nal_ref_idc = 0;
     uint8_t nal_type = 0;
@@ -664,7 +664,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         twig_frame_t *ref_list0[16], *ref_list1[16];
         int l0_count = 0, l1_count = 0;
     
-        twig_build_ref_lists_from_pool(decoder->frame_pool, decoder->hdr->slice_type, ref_list0, &l0_count, ref_list1, &l1_count, current_poc);
+        twig_build_ref_lists_from_pool(&decoder->frame_pool, decoder->hdr->slice_type, ref_list0, &l0_count, ref_list1, &l1_count, current_poc);
         // TODO: Apply ref_pic_list_modification() if present in slice header
         if (decoder->hdr->slice_type != SLICE_TYPE_I && decoder->hdr->slice_type != SLICE_TYPE_SI)
             twig_write_ref_list0_registers(decoder->cedar, decoder->ve_regs, decoder->frame_pool, ref_list0, l0_count);
@@ -759,7 +759,7 @@ EXPORT int twig_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *hei
 }
 
 EXPORT void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *output_buf) {
-    if (!decoder || !output)
+    if (!decoder || !output_buf)
         return;
 
     twig_mark_frame_return(decoder->frame_pool, output_buf, decoder->cedar);
