@@ -507,13 +507,12 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
 
     twig_writel(h264_base, H264_SDROT_CTRL, 0x00000000);
 
-    // TODO: Call to reference frame list management function, fill list/registers with input and all previous in-use references
+    // TODO: Fill list/registers with input and all previous in-use references
 
     const uint8_t *data = (const uint8_t *)bitstream_buf->virt;
     size_t len = bitstream_buf->size;
     size_t pos = 0;
     while (pos < len) {
-        memset(decoder->hdr, 0, sizeof(twig_h264_hdr_t));
         pos = twig_find_start_code(data, len, pos) + 3;
         if (pos < 0 || pos >= len)
             break;
@@ -527,6 +526,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         if (nal_type != 1 && nal_type != 5)
             continue;
         
+        memset(decoder->hdr, 0, sizeof(twig_h264_hdr_t));    
         twig_h264_parse_hdr(data + pos, nal_size, decoder);
 
         twig_writel(h264_base, H264_CTRL, (0x1 << 25) | (0x1 << 10));
@@ -536,9 +536,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         twig_writel(h264_base, H264_VLD_ADDR, (bitstream_addr & 0x0ffffff0) | (bitstream_addr >> 28) | (0x7 << 28));
         twig_writel(h264_base, H264_TRIGGER, 0x7);
 
-        // TODO: Call to reference frame list management again, this time for I-Types
-
-        // TODO: And again for B-Type
+        // TODO: Call to reference frame list management for B/I/SI slices
 
         twig_writel(h264_base, H264_SEQ_HDR, (0x1 << 19)
                   | ((decoder->sps->frame_mbs_only_flag & 0x1) << 18)
