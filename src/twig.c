@@ -27,10 +27,6 @@ EXPORT twig_dev_t *twig_open(void) {
         goto err_close;
 
     ioctl(cedar->fd, IOCTL_SET_VE_FREQ, 216);
-    ioctl(cedar->fd, IOCTL_RESET_VE, 0);
-
-    int refcount = 0;
-    ioctl(cedar->fd, IOCTL_SET_REFCOUNT, &refcount);
 
     cedar->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, cedar->fd, VE_BASE);
     if (cedar->regs == MAP_FAILED) {
@@ -62,8 +58,6 @@ void *twig_get_ve_regs(twig_dev_t *cedar, int width_geq2048_flag) {
         cedar->active = 1;
     }
 
-    int refcount = 1;
-    ioctl(cedar->fd, IOCTL_SET_REFCOUNT, &refcount);
     return cedar->regs;
 }
 
@@ -83,8 +77,6 @@ void twig_put_ve_regs(twig_dev_t *cedar) {
         return;
 
     twig_writel((uintptr_t)cedar->regs, VE_CTRL, 0x00130007);
-    int refcount = 0;
-    ioctl(cedar->fd, IOCTL_SET_REFCOUNT, &refcount);
     cedar->active = 0;
 }
 
