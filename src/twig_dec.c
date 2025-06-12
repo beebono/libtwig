@@ -592,6 +592,14 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         decoder->pool_initialized = 1;
     }
 
+    if (!decoder->extra_buf) {
+        decoder->extra_buf = twig_alloc_mem(decoder->cedar, 1024 * 1024);
+        if (!decoder->extra_buf) {
+            fprintf(stderr, "Failed to allocate extra buffer\n");
+            return NULL;
+        }
+    }
+
     uintptr_t ve_base = (uintptr_t)decoder->ve_regs;
     uintptr_t h264_base = ve_base + H264_OFFSET;
 
@@ -726,7 +734,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
     int is_reference = (nal_ref_idc != 0);
 
     twig_update_poc_state(decoder, current_poc);
-
+    twig_flush_mem(decoder->cedar, output_frame->buffer);
     return twig_send_frame(output_frame, frame_num, poc, is_reference);
 }
 
