@@ -24,7 +24,7 @@ typedef struct {
     uint8_t bit_depth_chroma_minus8;
     uint16_t pic_width_in_mbs_minus1;
     uint16_t pic_height_in_map_units_minus1;
-    uint16_t pic_height_in_mbs_minus1; // For convenience
+    uint16_t pic_height_in_mbs_minus1;
     uint8_t frame_mbs_only_flag;
     uint8_t mb_adaptive_frame_field_flag;
     uint8_t direct_8x8_inference_flag;
@@ -89,22 +89,32 @@ typedef struct {
     uint8_t first_slice_in_pic;
 } twig_h264_hdr_t;
 
+typedef struct twig_frame_pool_t twig_frame_pool_t;
+typedef struct twig_frame_t twig_frame_t;
+
 struct twig_h264_decoder_t {
     twig_dev_t *cedar;
     void *ve_regs;
-
-    twig_mem_t *extra_buf;
     twig_h264_hdr_t *hdr;
     twig_h264_sps_t *sps;
     twig_h264_pps_t *pps;
-    int is_default_scaling;
-
     uint16_t coded_width, coded_height;
+    uint16_t last_width, last_height;
+    int is_default_scaling;
+    twig_frame_pool_t frame_pool;
+    int pool_initialized;
 };
 
 void *twig_get_ve_regs(twig_dev_t *cedar, int flag);
 int twig_wait_for_ve(twig_dev_t *cedar);
 void twig_put_ve_regs(twig_dev_t *cedar);
+
+int twig_frame_pool_init(twig_frame_pool_t *pool, int width, int height);
+twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, uint16_t pwimm1);
+twig_frame_t twig_send_frame(twig_frame_t *frame, int frame_num, int poc, int is_reference);
+void twig_mark_frame_return(twig_frame_pool_t *pool, twig_mem_t *buffer, twig_dev_t *cedar);
+void twig_mark_frame_unref(twig_frame_t *frame);
+void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar);
 
 static int twig_find_start_code(const uint8_t *data, int size, int start) {
 	int pos, leading_zeros = 0;
@@ -466,23 +476,16 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
     if (!decoder->hdr)
         return NULL;
 
-    int extra_buf_size = 327680;
-    if (decoder->coded_width >= 2048) {
-        extra_buf_size += (decoder->sps->pic_width_in_mbs_minus1 + 32) * 192;
-        extra_buf_size = (extra_buf_size + 4095) & ~4095;
-        extra_buf_size += (decoder->sps->pic_width_in_mbs_minus1 + 64) * 80;
-    }
-    decoder->extra_buf = twig_alloc_mem(decoder->cedar, extra_buf_size);
-    if (!decoder->extra_buf) {
-        free(decoder->hdr);
-        return NULL;
-    }
+    if (decoder->pool_initialized == 0 || decoder->last_width != decoder->coded_width || decoder->last_height != decoder->coded_height) {
+        if (decoder->pool_initialized == 1)
+            twig_frame_pool_cleanup(decoder->frame_pool, decoder->cedar);
 
-    twig_mem_t *output_buf = twig_alloc_mem(decoder->cedar, decoder->coded_width * decoder->coded_height * 3 / 2);
-    if (!output_buf) {
-        twig_free_mem(decoder->cedar, decoder->extra_buf);
-        free(decoder->hdr);
-        return NULL;
+        if (twig_frame_pool_init(&decoder->frame_pool, decoder->coded_width, decoder->coded_height) < 0)
+            return NULL;
+
+        decoder->last_width = decoder->coded_width;
+        decoder->last_height = decoder->coded_height;
+        decoder->pool_initialized = 1;
     }
 
     uintptr_t ve_base = (uintptr_t)decoder->ve_regs;
@@ -589,7 +592,12 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         pos = (twig_readl(h264_base, H264_VLD_OFFSET) / 8) - 3;
     }
     twig_put_ve_regs(decoder->cedar);
-    return output_buf;
+
+    int frame_num = decoder->hdr->frame_num;
+    int poc = decoder->hdr->pic_order_cnt_lsb;
+    int is_reference = (decoder->hdr->nal_unit_type == 5 || decoder->hdr->nal_unit_type == 1);
+
+    return twig_send_frame(output_frame, frame_num, poc, is_reference);
 }
 
 EXPORT int twig_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *height) {
@@ -611,21 +619,29 @@ EXPORT int twig_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *hei
 }
 
 EXPORT void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *output_buf) {
-    // Dummy function to trigger reference management later on
-    // Probably move this to twig_refs.c
+    if (!decoder || !output)
+        return;
+
+    twig_mark_frame_return(decoder->frame_pool, output_buf, decoder->cedar);
 }
 
 EXPORT void twig_h264_decoder_destroy(twig_h264_decoder_t* decoder) {
     if (!decoder)
         return;
 
-    if (decoder->ve_regs);
+    if (decoder->ve_regs)
         twig_put_ve_regs(decoder->cedar);
 
-    if (decoder->sps);
+    twig_frame_pool_cleanup(&decoder->frame_pool, decoder->cedar);
+
+    if (decoder->sps)
         free(decoder->sps);
-    if (decoder->pps);
+    if (decoder->pps)
         free(decoder->pps);
+    if (decoder->hdr)
+        free(decoder->hdr);
+    if (decoder->extra_buf)
+        twig_free_mem(decoder->cedar, decoder->extra_buf);
 
     free(decoder);
 }

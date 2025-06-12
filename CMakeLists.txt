@@ -4,8 +4,8 @@ project(twig VERSION 1.0.0 LANGUAGES C)
 set(TWIG_SOURCES
     src/twig.c
     src/twig_dec.c
+    src/twig_frame.c
     src/twig_ion.c
-    src/twig_refs.c
 )
 
 set(TWIG_HEADERS

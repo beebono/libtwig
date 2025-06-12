@@ -127,4 +127,6 @@ typedef enum {
     H264_MODE_LF_DELTA         = 0xfc
 } H264_Registers;
 
+#define VE_SRAM_H264_FRAMEBUFFER_LIST 0x400
+
 #endif // TWIG_REGS_H_
