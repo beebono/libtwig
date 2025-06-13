@@ -22,28 +22,32 @@ EXPORT twig_dev_t *twig_open(void) {
     if (cedar->fd == -1)
         goto err_free;
 
-    ioctl(cedar->fd, IOCTL_ENABLE_VE, 0);
-    if (ioctl(cedar->fd, IOCTL_ENGINE_REQ, 0) < 0)
+    cedar->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, cedar->fd, VE_BASE);
+    if (cedar->regs == MAP_FAILED)
         goto err_close;
 
-    ioctl(cedar->fd, IOCTL_SET_VE_FREQ, 216);
-
-    cedar->regs = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, cedar->fd, VE_BASE);
-    if (cedar->regs == MAP_FAILED) {
-        perror("mmap regs: MAP_FAILED");
-        goto err_release;
+    if(twig_readl((uintptr_t)cedar->regs, VE_CTRL) & 0x00000001) {
+        fprintf(stderr, "WARNING: Cedar VE is still in H.264 mode, forcing refcount to 0!\n");
+        ioctl(cedar->fd, IOCTL_SET_REFCOUNT, 0);
     }
+
+    if (ioctl(cedar->fd, IOCTL_ENABLE_VE, 0) < 0)
+        goto err_unmap;
+
+    if (ioctl(cedar->fd, IOCTL_ENGINE_REQ, 0) < 0)
+        goto err_disable;
 
     cedar->active = 0;
     return cedar;
 
-err_release:
-    ioctl(cedar->fd, IOCTL_ENGINE_REL, 0);
-
+err_disable:
+    ioctl(cedar->fd, IOCTL_DISABLE_VE, 0);
+err_unmap:
+    munmap(cedar->regs, 2048);
+	cedar->regs = NULL;
 err_close:
     close(cedar->fd);
     cedar->fd = -1;
-
 err_free:   
     free(cedar);
     return NULL;
@@ -54,10 +58,13 @@ void *twig_get_ve_regs(twig_dev_t *cedar, int width_geq2048_flag) {
         return NULL;
 
     if (cedar->active == 0) {
-        twig_writel((uintptr_t)cedar->regs, VE_CTRL, 0x00130001 | (width_geq2048_flag ? 0x00200000 : 0x0 ));
+        uint32_t ctrl_val = 0x00130001;
+        if (width_geq2048_flag)
+            ctrl_val |= 0x00200000;
+
+        twig_writel((uintptr_t)cedar->regs, VE_CTRL, ctrl_val);
         cedar->active = 1;
     }
-
     return cedar->regs;
 }
 

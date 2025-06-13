@@ -4,8 +4,6 @@
 
 #define ION_IOC_SUNXI_FLUSH_RANGE 5
 #define ION_IOC_SUNXI_PHYS_ADDR	  7
-#define IOCTL_GET_IOMMU_ADDR      0x502
-#define IOCTL_FREE_IOMMU_ADDR     0x503
 
 struct sunxi_cache_range {
 	long start, end;
@@ -19,10 +17,6 @@ struct sunxi_phys_data {
 struct user_iommu_param {
     int fd;
     unsigned int iommu_addr;
-};
-
-struct cache_range {
-    uint64_t start, end;
 };
 
 struct ion_mem {
