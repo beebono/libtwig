@@ -3,19 +3,17 @@ Streamlined CedarX variant library, pruned for H.264 decoding with easy-to-use b
 
 ## Architecture Overview
 
-### 1. Main Device Layer (`twig.h`)
+### 1. Main Public API (`twig.h`)
 - Cedar VE hardware device management
 - Memory allocator abstraction (ION/IOMMU)
-- Direct access to buffers via `twig_mem_t` struct
+- Single user-side bitstream buffer decoding
+- Direct access to decoded buffers via `twig_mem_t` struct
 
-### 2. H.264 Decoding Layer (`twig_dec.h`)
-- TBD
-
-### 3. Register Definitions and Access (`twig_regs.h`)
+### 2. Register Definitions and Access (`twig_regs.h`)
 - Helper functions for writing to and reading from Cedar VE registers
 - Comprehensive list of relevant register bases and offsets
 
-### 4. Software Bitreader (`twig_bits.h`)
+### 3. Software Bitreader (`twig_bits.h`)
 - Allows reading SPS/PPS information before buffer requests
 - Tracks bitstream position per `twig_bitreader_t` instance
 - Convenience functions for single bit reads/skips
@@ -29,9 +27,26 @@ Streamlined CedarX variant library, pruned for H.264 decoding with easy-to-use b
 // 1. Open Cedar device
 twig_dev_t *device = twig_open();
 
-// TODO: Complete usage example
+// 2. Allocate and fill bitstream buffer
+twig_mem_t *bitstream_buffer = twig_alloc_mem(device, frame_size);
+memcpy(bitstream_buffer->virt_addr, frame_data, frame_size);
 
-// X. Cleanup
+// 3. Create decoder context
+twig_h264_decoder_t *decoder = twig_h264_decoder_init(device);
+
+// 4. Send data to decoder and receive decoded data
+twig_mem_t *output_buffer = twig_h264_decode_frame(device, bitstream_buffer);
+
+// 4a. (Optional) Read frame resolution and/or process decoded data
+int width, height;
+twig_h264_get_frame_res(decoder, &width, &height);
+printf("Received resolution: %dx%d\n", width, height);
+
+// 5. Return frame to decoder when finished with it
+twig_h264_return_frame(decoder, output_buffer);
+
+// 6. Cleanup after completely finished with decoding
+twig_h264_decoder_destroy(decoder);
 twig_close(device);
 ```
 

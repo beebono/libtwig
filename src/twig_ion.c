@@ -6,12 +6,12 @@
 #define ION_IOC_SUNXI_PHYS_ADDR	  7
 
 struct sunxi_cache_range {
-	long start, end;
+    long start, end;
 };
 
 struct sunxi_phys_data {
-	int handle;
-	unsigned int phys_addr, size;
+    int handle;
+    unsigned int phys_addr, size;
 };
 
 struct user_iommu_param {
@@ -28,8 +28,9 @@ static int ion_alloc(int dev_fd, size_t size) {
     if (dev_fd < 0 || size <= 0)
         return -1;
 
+    size_t aligned_size = (size + 4095) & ~(4095);
     struct ion_allocation_data alloc = {
-        .len = size,
+        .len = aligned_size,
         .align = 4096,
         .heap_id_mask = ION_HEAP_TYPE_DMA_MASK,
         .flags = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC,
@@ -47,8 +48,8 @@ static uint32_t ion_get_phys_addr(int dev_fd, int handle) {
         return 0x0;
 
     struct sunxi_phys_data phys_data = {
-		.handle = handle
-	};
+        .handle = handle
+    };
 	struct ion_custom_data custom_data = {
 		.cmd = ION_IOC_SUNXI_PHYS_ADDR,
 		.arg = (unsigned long)(&phys_data)
@@ -96,8 +97,8 @@ static void ion_free(int dev_fd, int handle) {
         return;
 
     struct ion_handle_data handle_data = {
-		.handle = handle
-	};
+        .handle = handle
+    };
 
     ioctl(dev_fd, ION_IOC_FREE, &handle_data);
 }
@@ -119,9 +120,9 @@ twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size) {
         return NULL;
 
     struct ion_mem *mem = calloc(1, sizeof(*mem));
-	if (!mem)
-		return NULL;
-    
+    if (!mem)
+        return NULL;
+
     static int dev_fd = -1;
     if (dev_fd < 0)
         dev_fd = open("/dev/ion", O_RDWR);
@@ -130,8 +131,7 @@ twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size) {
     if (mem->dev_fd < 0)
         goto err_free;
 
-    mem->pub_mem.size = (size + 4095) & ~(4095);
-    mem->handle = ion_alloc(mem->dev_fd, mem->pub_mem.size);
+    mem->handle = ion_alloc(mem->dev_fd, size);
     if (mem->handle < 0)
         goto err_close;
 
@@ -140,8 +140,8 @@ twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size) {
     if (!mem->pub_mem.phys_addr || mem->pub_mem.ion_fd < 0)
         goto err_free2;
 
-    mem->pub_mem.virt = mmap(NULL, mem->pub_mem.size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.ion_fd, 0);
-    if (mem->pub_mem.virt == MAP_FAILED)
+    mem->pub_mem.virt_addr = mmap(NULL, mem->pub_mem.size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.ion_fd, 0);
+    if (mem->pub_mem.virt_addr == MAP_FAILED)
         goto err_close2;
 
     mem->pub_mem.iommu_addr = ion_get_iommu_addr(cedar_fd, mem->pub_mem.ion_fd);
@@ -151,7 +151,7 @@ twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size) {
     return &mem->pub_mem;
 
 err_unmap:
-    munmap(mem->pub_mem.virt, mem->pub_mem.size);
+    munmap(mem->pub_mem.virt_addr, mem->pub_mem.size);
 
 err_close2:
     close(mem->pub_mem.ion_fd);
@@ -174,10 +174,10 @@ void twig_ion_flush_mem(twig_mem_t *pub_mem) {
     struct ion_mem *mem = (struct ion_mem*)pub_mem;
 
     struct sunxi_cache_range range = {
-        .start = (long)pub_mem->virt,
-        .end = (long)pub_mem->virt + pub_mem->size
+        .start = (long)pub_mem->virt_addr,
+        .end = (long)pub_mem->virt_addr + pub_mem->size
     };
-    
+
     ioctl(mem->dev_fd, ION_IOC_SUNXI_FLUSH_RANGE, &range);
 }
 
@@ -188,7 +188,7 @@ void twig_ion_free_mem(int cedar_fd, twig_mem_t *pub_mem) {
     struct ion_mem *mem = (struct ion_mem*)pub_mem;
 
     ion_free_iommu_addr(cedar_fd, pub_mem->ion_fd);
-    munmap(pub_mem->virt, pub_mem->size);
+    munmap(pub_mem->virt_addr, pub_mem->size);
     close(pub_mem->ion_fd);
     ion_free(mem->dev_fd, mem->handle);
     free(mem);

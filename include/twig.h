@@ -22,9 +22,9 @@
 #include <unistd.h>
 
 typedef struct {
-    void *virt;
-	uint32_t phys_addr, iommu_addr;
-	size_t size;
+    void *virt_addr;
+    uint32_t phys_addr, iommu_addr;
+    size_t size;
     int ion_fd;
 } twig_mem_t;
 
@@ -40,7 +40,7 @@ void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem);
 
 twig_h264_decoder_t *twig_h264_decoder_init(twig_dev_t *cedar);
 twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem_t *bitstream_buf);
-int twig_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *height);
+int twig_h264_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *height);
 void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *output_buf);
 void twig_h264_decoder_destroy(twig_h264_decoder_t* decoder);
 

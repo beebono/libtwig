@@ -5,8 +5,8 @@
 #define EXPORT __attribute__((visibility ("default")))
 
 struct twig_dev_t {
-	int fd, active;
-	void *regs;
+    int fd, active;
+    void *regs;
 };
 
 twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size);
@@ -45,11 +45,11 @@ err_disable:
     ioctl(cedar->fd, IOCTL_DISABLE_VE, 0);
 err_unmap:
     munmap(cedar->regs, 2048);
-	cedar->regs = NULL;
+    cedar->regs = NULL;
 err_close:
     close(cedar->fd);
     cedar->fd = -1;
-err_free:   
+err_free:
     free(cedar);
     return NULL;
 }
@@ -87,37 +87,37 @@ void twig_put_ve_regs(twig_dev_t *cedar) {
 EXPORT twig_mem_t *twig_alloc_mem(twig_dev_t *cedar, size_t size) {
     if (!cedar || cedar->fd < 0 || size <= 0)
         return NULL;
-    
+
     return twig_ion_alloc_mem(cedar->fd, size);
 }
 
 EXPORT void twig_flush_mem(twig_mem_t *mem) {
     if (!mem)
         return;
-    
+
     twig_ion_flush_mem(mem);
 }
 
 EXPORT void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem) {
     if (!cedar || cedar->fd < 0 || !mem)
         return;
-    
+
     twig_ion_free_mem(cedar->fd, mem);
 }
 
 EXPORT void twig_close(twig_dev_t *cedar) {
-	if (cedar->fd == -1)
-		return;
+    if (cedar->fd == -1)
+        return;
 
     if (cedar->active == 1)
         twig_put_ve_regs(cedar);
 
-	munmap(cedar->regs, 2048);
-	cedar->regs = NULL;
+    munmap(cedar->regs, 2048);
+    cedar->regs = NULL;
 
     ioctl(cedar->fd, IOCTL_ENGINE_REL, 0);
     ioctl(cedar->fd, IOCTL_DISABLE_VE, 0);
 
-	close(cedar->fd);
-	cedar->fd = -1;
+    close(cedar->fd);
+    cedar->fd = -1;
 }

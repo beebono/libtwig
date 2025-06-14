@@ -95,7 +95,7 @@ int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_c
     int adaptive_mode = twig_get_1bit_hw(regs);
     if (!adaptive_mode)
         return 0;
-    
+
     do {
         twig_mmco_cmd_t *cmd = &mmco_list[*mmco_count];
         cmd->memory_management_control_operation = twig_get_ue_golomb_hw(regs);
@@ -125,7 +125,7 @@ int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_c
         }
         (*mmco_count)++;
     } while (*mmco_count < 32);
-    
+
     return 0;
 }
 
@@ -202,7 +202,7 @@ static void twig_mmco_reset_all(twig_ref_management_t *ref_mgmt) {
 static void twig_mmco_current_to_long(twig_ref_management_t *ref_mgmt, twig_frame_t *current_frame, int long_term_frame_idx) {
     if (ref_mgmt->max_long_term_frame_idx >= 0 && long_term_frame_idx > ref_mgmt->max_long_term_frame_idx)
         return;
-    
+
     twig_mmco_long_to_unused(ref_mgmt, long_term_frame_idx);
     current_frame->is_long_term = 1;
     current_frame->long_term_idx = long_term_frame_idx;
@@ -244,7 +244,7 @@ void twig_add_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     while (insert_pos < pool->short_count && pool->short_refs[insert_pos]->frame_num > frame->frame_num) {
         insert_pos++;
     }
-    
+
     for (int i = pool->short_count; i > insert_pos; i--) {
         pool->short_refs[i] = pool->short_refs[i-1];
     }
@@ -253,7 +253,7 @@ void twig_add_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     pool->short_count++;
     frame->is_reference = 1;
     frame->is_long_term = 0;
-    
+
     int max_refs = 16;
     if (pool->short_count > max_refs) {
         twig_frame_t *oldest = pool->short_refs[pool->short_count - 1];
@@ -279,7 +279,7 @@ void twig_add_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
         if (pool->long_refs[i]->long_term_idx == frame->long_term_idx) {
             pool->long_refs[i]->is_reference = 0;
             pool->long_refs[i]->is_long_term = 0;
-            
+
             for (int j = i; j < pool->long_count - 1; j++) {
                 pool->long_refs[j] = pool->long_refs[j + 1];
             }
@@ -332,7 +332,7 @@ void twig_mark_frame_return(twig_frame_pool_t *pool, twig_mem_t *buffer, twig_de
 void twig_mark_frame_unref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     if (!frame || !frame->is_reference)
         return;
-    
+
     if (frame->is_long_term)
         twig_remove_long_term_ref(pool, frame);
     else
@@ -353,14 +353,14 @@ void twig_remove_stale_frames(twig_frame_pool_t *pool) {
 void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar) {
     if (!pool || !cedar)
         return;
-        
+
     for (int i = 0; i < pool->allocated_count; i++) {
         if (pool->frames[i].buffer) {
             twig_free_mem(cedar, pool->frames[i].buffer);
             pool->frames[i].buffer = NULL;
         }
     }
-    
+
     pool->allocated_count = 0;
 }
 
@@ -467,7 +467,7 @@ void twig_build_ref_lists(twig_frame_pool_t *pool, twig_slice_type_t slice_type,
                             int current_poc) {    
     *l0_count = 0;
     *l1_count = 0;
-    
+
     if (slice_type == SLICE_TYPE_I)
         return;
 
@@ -495,12 +495,12 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
                                     twig_frame_t *output_frame, int output_poc) {
     if (!cedar || !ve_regs || !pool || !output_frame)
         return;
-        
+
     uintptr_t ve_base = (uintptr_t)ve_regs;
     uintptr_t h264_base = ve_base + H264_OFFSET;
 
     twig_writel(h264_base, H264_RAM_WRITE_PTR, VE_SRAM_H264_FRAMEBUFFER_LIST);
-    
+
     int output_placed = 0;
 
     for (int i = 0; i < 18; i++) {
@@ -517,7 +517,7 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
                     frame = NULL;
             }
         }
-        
+
         if (!frame) {
             for (int j = 0; j < 8; j++) {
                 twig_writel(h264_base, H264_RAM_WRITE_DATA, 0);
