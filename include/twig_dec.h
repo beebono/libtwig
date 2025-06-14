@@ -176,6 +176,7 @@ int32_t twig_get_se_golomb_hw(void *regs);
 
 int twig_frame_pool_init(twig_frame_pool_t *pool, int width, int height);
 twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, uint16_t pwimm1);
+void twig_add_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame);
 void twig_mark_frame_unref(twig_frame_pool_t *pool, twig_frame_t *frame);
 void twig_remove_stale_frames(twig_frame_pool_t *pool);
 void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar);

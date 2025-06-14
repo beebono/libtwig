@@ -132,23 +132,15 @@ int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_c
 static void twig_mmco_short_to_unused(twig_frame_pool_t *pool, int difference_of_pic_nums_minus1, int current_frame_num) {
     int target_frame_num = current_frame_num - (difference_of_pic_nums_minus1 + 1);
     for (int i = 0; i < pool->short_count; i++) {
-        if (pool->short_refs[i]->frame_num == target_frame_num) {
+        if (pool->short_refs[i]->frame_num == target_frame_num)
             twig_mark_frame_unref(pool, pool->short_refs[i]);
-            for (int j = i; j < pool->short_count - 1; j++) {
-                pool->short_refs[j] = pool->short_refs[j + 1];
-            }
-        }
     }
 }
 
 static void twig_mmco_long_to_unused(twig_frame_pool_t *pool, int long_term_pic_num) {
     for (int i = 0; i < pool->long_count; i++) {
-        if (pool->long_refs[i]->long_term_idx == long_term_pic_num) {
+        if (pool->long_refs[i]->long_term_idx == long_term_pic_num)
             twig_mark_frame_unref(pool, pool->long_refs[i]);
-            for (int j = i; j < pool->long_count - 1; j++) {
-                pool->long_refs[j] = pool->long_refs[j + 1];
-            }
-        }
     }
 }
 
@@ -157,14 +149,10 @@ static void twig_mmco_short_to_long(twig_frame_pool_t *pool, int difference_of_p
     for (int i = 0; i < pool->short_count; i++) {
         if (pool->short_refs[i]->frame_num == target_frame_num) {
             twig_frame_t *frame = pool->short_refs[i];
-            for (int j = i; j < pool->short_count - 1; j++) {
-                pool->short_refs[j] = pool->short_refs[j + 1];
-            }
-            pool->short_count--;
+            twig_remove_short_term_ref(pool, frame);
             twig_mmco_long_to_unused(pool, long_term_frame_idx);
-            frame->is_long_term = 1;
             frame->long_term_idx = long_term_frame_idx;
-            pool->long_refs[pool->long_count++] = frame;
+            twig_add_long_term_ref(pool, frame);
         }
     }
 }
@@ -172,12 +160,8 @@ static void twig_mmco_short_to_long(twig_frame_pool_t *pool, int difference_of_p
 static void twig_mmco_set_max_long_term(twig_frame_pool_t *pool, int max_long_term_frame_idx_plus1) {
     pool->max_long_term_frame_idx = max_long_term_frame_idx_plus1 - 1;
     for (int i = pool->long_count - 1; i >= 0; i--) {
-        if (pool->long_refs[i]->long_term_idx > pool->max_long_term_frame_idx) {
+        if (pool->long_refs[i]->long_term_idx > pool->max_long_term_frame_idx)
             twig_mark_frame_unref(pool, pool->long_refs[i]);
-            for (int j = i; j < pool->long_count - 1; j++) {
-                pool->long_refs[j] = pool->long_refs[j + 1];
-            }
-        }
     }
 }
 
@@ -198,10 +182,8 @@ static void twig_mmco_current_to_long(twig_frame_pool_t *pool, twig_frame_t *cur
         return;
 
     twig_mmco_long_to_unused(pool, long_term_frame_idx);
-    current_frame->is_long_term = 1;
     current_frame->long_term_idx = long_term_frame_idx;
-    if (pool->long_count < 16)
-        pool->long_refs[pool->long_count++] = current_frame;
+    twig_add_long_term_ref(pool, current_frame);
 }
 
 void twig_execute_mmco_commands(twig_h264_decoder_t *decoder, twig_frame_t *current_frame) {
@@ -255,7 +237,7 @@ void twig_add_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     }
 }
 
-void twig_remove_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
+static void twig_remove_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     for (int i = 0; i < pool->short_count; i++) {
         if (pool->short_refs[i] == frame) {
             for (int j = i; j < pool->short_count - 1; j++) {
@@ -267,7 +249,7 @@ void twig_remove_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     }
 }
 
-void twig_add_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
+static void twig_add_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     for (int i = 0; i < pool->long_count; i++) {
         if (pool->long_refs[i]->long_term_idx == frame->long_term_idx) {
             twig_mark_frame_unref(pool, pool->long_refs[i]);
@@ -282,13 +264,12 @@ void twig_add_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     }
 }
 
-void twig_remove_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
+static void twig_remove_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     for (int i = 0; i < pool->long_count; i++) {
         if (pool->long_refs[i] == frame) {
             for (int j = i; j < pool->long_count - 1; j++) {
                 pool->long_refs[j] = pool->long_refs[j + 1];
             }
-            pool->long_count--;
             return;
         }
     }
@@ -309,7 +290,7 @@ void twig_mark_frame_unref(twig_frame_pool_t *pool, twig_frame_t *frame) {
 }
 
 void twig_remove_stale_frames(twig_frame_pool_t *pool) {
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < pool->allocated_count; i++) {
         if (pool->frames[i].state == FRAME_STATE_DECODER_HELD && pool->frames[i].is_reference == 0)
             pool->frames[i].state = FRAME_STATE_FREE;
     }

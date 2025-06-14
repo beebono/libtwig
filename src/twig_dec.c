@@ -665,7 +665,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
                     twig_mark_frame_unref(&decoder->frame_pool, &decoder->frame_pool.frames[i]);
             }
         }
-        twig_add_reference_frame(&decoder->frame_pool, output_frame);
+        twig_add_short_term_ref(&decoder->frame_pool, output_frame);
     }
     twig_update_poc_state(decoder, current_poc);
     output_frame->state = FRAME_STATE_APP_HELD;
