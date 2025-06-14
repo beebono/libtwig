@@ -53,6 +53,3 @@ dkms.conf
 
 # Recommended build directory
 build/
-
-# Temporary install directory
-libtwig/

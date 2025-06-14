@@ -140,6 +140,7 @@ twig_mem_t *twig_ion_alloc_mem(int cedar_fd, size_t size) {
     if (!mem->pub_mem.phys_addr || mem->pub_mem.ion_fd < 0)
         goto err_free2;
 
+    mem->pub_mem.size = size;
     mem->pub_mem.virt_addr = mmap(NULL, mem->pub_mem.size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->pub_mem.ion_fd, 0);
     if (mem->pub_mem.virt_addr == MAP_FAILED)
         goto err_close2;

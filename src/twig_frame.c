@@ -90,6 +90,45 @@ twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, ui
     return NULL;
 }
 
+static void twig_remove_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
+    for (int i = 0; i < pool->short_count; i++) {
+        if (pool->short_refs[i] == frame) {
+            for (int j = i; j < pool->short_count - 1; j++) {
+                pool->short_refs[j] = pool->short_refs[j + 1];
+            }
+            pool->short_count--;
+            return;
+        }
+    }
+}
+
+static void twig_add_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
+    for (int i = 0; i < pool->long_count; i++) {
+        if (pool->long_refs[i]->long_term_idx == frame->long_term_idx) {
+            twig_mark_frame_unref(pool, pool->long_refs[i]);
+            break;
+        }
+    }
+
+    if (pool->long_count < 16) {
+        pool->long_refs[pool->long_count++] = frame;
+        frame->is_reference = 1;
+        frame->is_long_term = 1;
+    }
+}
+
+static void twig_remove_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
+    for (int i = 0; i < pool->long_count; i++) {
+        if (pool->long_refs[i] == frame) {
+            for (int j = i; j < pool->long_count - 1; j++) {
+                pool->long_refs[j] = pool->long_refs[j + 1];
+            }
+            pool->long_count--;
+            return;
+        }
+    }
+}
+
 int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_count) {
     *mmco_count = 0;
     int adaptive_mode = twig_get_1bit_hw(regs);
@@ -237,44 +276,6 @@ void twig_add_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     }
 }
 
-static void twig_remove_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
-    for (int i = 0; i < pool->short_count; i++) {
-        if (pool->short_refs[i] == frame) {
-            for (int j = i; j < pool->short_count - 1; j++) {
-                pool->short_refs[j] = pool->short_refs[j + 1];
-            }
-            pool->short_count--;
-            return;
-        }
-    }
-}
-
-static void twig_add_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
-    for (int i = 0; i < pool->long_count; i++) {
-        if (pool->long_refs[i]->long_term_idx == frame->long_term_idx) {
-            twig_mark_frame_unref(pool, pool->long_refs[i]);
-            break;
-        }
-    }
-
-    if (pool->long_count < 16) {
-        pool->long_refs[pool->long_count++] = frame;
-        frame->is_reference = 1;
-        frame->is_long_term = 1;
-    }
-}
-
-static void twig_remove_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
-    for (int i = 0; i < pool->long_count; i++) {
-        if (pool->long_refs[i] == frame) {
-            for (int j = i; j < pool->long_count - 1; j++) {
-                pool->long_refs[j] = pool->long_refs[j + 1];
-            }
-            return;
-        }
-    }
-}
-
 void twig_mark_frame_unref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     if (!frame || !frame->is_reference)
         return;
@@ -417,14 +418,107 @@ static void twig_build_list1(twig_frame_pool_t *pool, twig_frame_t **list1, int 
     }
 }
 
-void twig_build_ref_lists(twig_frame_pool_t *pool, twig_slice_type_t slice_type,
+static void twig_apply_ref_list_modifications(twig_frame_pool_t *pool, twig_h264_hdr_t *hdr,
+                                             twig_frame_t **ref_list, int *list_count, int is_list1) {
+    int modification_flag = is_list1 ? hdr->ref_pic_list_modification_flag_l1 : hdr->ref_pic_list_modification_flag_l0;
+    int modification_count = is_list1 ? hdr->modification_count_l1 : hdr->modification_count_l0;
+
+    if (!modification_flag || modification_count == 0)
+        return;
+
+    int ref_idx = 0;
+    for (int i = 0; i < modification_count && ref_idx < *list_count; i++) {
+        uint32_t idc = hdr->modification_of_pic_nums_idc[i];
+        if (idc == 0 || idc == 1) {
+            int abs_diff = hdr->abs_diff_pic_num_minus1[i] + 1;
+            int pic_num;
+
+            if (idc == 0)
+                pic_num = hdr->frame_num - abs_diff;
+            else 
+                pic_num = hdr->frame_num + abs_diff;
+
+
+            if (pic_num < 0)
+                pic_num += pool->max_frame_num;
+            else if (pic_num >= pool->max_frame_num)
+                pic_num -= pool->max_frame_num;
+
+            twig_frame_t *target_frame = NULL;
+            for (int j = 0; j < pool->short_count; j++) {
+                if (pool->short_refs[j]->frame_num == pic_num) {
+                    target_frame = pool->short_refs[j];
+                    break;
+                }
+            }
+
+            if (target_frame) {
+                for (int j = *list_count; j > ref_idx; j--) {
+                    ref_list[j] = ref_list[j-1];
+                }
+                ref_list[ref_idx] = target_frame;
+
+                int found_idx = -1;
+                for (int j = ref_idx + 1; j < *list_count + 1; j++) {
+                    if (ref_list[j] == target_frame) {
+                        found_idx = j;
+                        break;
+                    }
+                }
+                if (found_idx >= 0) {
+                    for (int j = found_idx; j < *list_count; j++) {
+                        ref_list[j] = ref_list[j+1];
+                    }
+                } else {
+                    (*list_count)++;
+                }
+                ref_idx++;
+            }
+        } else if (idc == 2) {
+            int long_term_pic_num = hdr->long_term_pic_num[i];
+            twig_frame_t *target_frame = NULL;
+            for (int j = 0; j < pool->long_count; j++) {
+                if (pool->long_refs[j]->long_term_idx == long_term_pic_num) {
+                    target_frame = pool->long_refs[j];
+                    break;
+                }
+            }
+
+            if (target_frame) {
+                for (int j = *list_count; j > ref_idx; j--) {
+                    ref_list[j] = ref_list[j-1];
+                }
+                ref_list[ref_idx] = target_frame;
+
+                int found_idx = -1;
+                for (int j = ref_idx + 1; j < *list_count + 1; j++) {
+                    if (ref_list[j] == target_frame) {
+                        found_idx = j;
+                        break;
+                    }
+                }
+                if (found_idx >= 0) {
+                    for (int j = found_idx; j < *list_count; j++) {
+                        ref_list[j] = ref_list[j+1];
+                    }
+                } else {
+                    (*list_count)++;
+                }
+                ref_idx++;
+            }
+        }
+    }
+}
+
+void twig_build_ref_lists(twig_frame_pool_t *pool, twig_h264_hdr_t *hdr,
                             twig_frame_t **list0, int *l0_count,
                             twig_frame_t **list1, int *l1_count,
                             int current_poc) {    
     *l0_count = 0;
     *l1_count = 0;
+    twig_slice_type_t slice_type = hdr->slice_type;
 
-    if (slice_type == SLICE_TYPE_I)
+    if (slice_type == SLICE_TYPE_I || slice_type == SLICE_TYPE_SI)
         return;
 
     twig_build_list0(pool, list0, l0_count, current_poc);
@@ -444,6 +538,18 @@ void twig_build_ref_lists(twig_frame_pool_t *pool, twig_slice_type_t slice_type,
                 list1[1] = temp;
             }
         }
+    }
+    
+    twig_apply_ref_list_modifications(pool, hdr, list0, l0_count, 0);
+    if (slice_type == SLICE_TYPE_B) {
+        twig_apply_ref_list_modifications(pool, hdr, list1, l1_count, 1);
+    }
+    
+    if (*l0_count > hdr->num_ref_idx_l0_active_minus1 + 1) {
+        *l0_count = hdr->num_ref_idx_l0_active_minus1 + 1;
+    }
+    if (slice_type == SLICE_TYPE_B && *l1_count > hdr->num_ref_idx_l1_active_minus1 + 1) {
+        *l1_count = hdr->num_ref_idx_l1_active_minus1 + 1;
     }
 }
 

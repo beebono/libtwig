@@ -54,6 +54,6 @@ twig_close(device);
 
 ```bash
 mkdir ./build && cd build
-cmake ../
+cmake ../ -DCMAKE_INSTALL_PREFIX=./install
 cmake --build . --target install
 ```

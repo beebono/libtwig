@@ -43,7 +43,6 @@ install(TARGETS twig
 
 install(FILES 
     include/twig.h
-    include/twig_dec.h
     DESTINATION include
 )
 

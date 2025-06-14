@@ -82,6 +82,10 @@ typedef struct {
     uint8_t delta_pic_order_always_zero_flag;
     uint8_t max_num_ref_frames;
     uint8_t gaps_in_frame_num_value_allowed_flag;
+    uint8_t seq_scaling_matrix_present_flag;
+    uint8_t seq_scaling_list_present_flag[8];
+    uint8_t scaling_list_4x4[6][16];
+    uint8_t scaling_list_8x8[2][64];
 } twig_h264_sps_t;
 
 typedef struct {
@@ -103,6 +107,17 @@ typedef struct {
     uint8_t transform_8x8_mode_flag;
     uint8_t pic_scaling_matrix_present_flag;
     int8_t second_chroma_qp_index_offset;
+    uint8_t pic_scaling_list_present_flag[8];
+    uint8_t scaling_list_4x4[6][16];
+    uint8_t scaling_list_8x8[2][64];
+    uint8_t slice_group_map_type;
+    uint32_t run_length_minus1[8];
+    uint32_t top_left[8];
+    uint32_t bottom_right[8];
+    uint8_t slice_group_change_direction_flag;
+    uint32_t slice_group_change_rate_minus1;
+    uint32_t pic_size_in_map_units_minus1;
+    uint8_t *slice_group_id;
 } twig_h264_pps_t;
 
 typedef struct {
@@ -130,6 +145,14 @@ typedef struct {
     int8_t slice_alpha_c0_offset_div2;
     int8_t slice_beta_offset_div2;
     uint8_t first_slice_in_pic;
+    uint8_t long_term_reference_flag;
+    uint32_t modification_of_pic_nums_idc[32];
+    uint32_t abs_diff_pic_num_minus1[32];
+    uint32_t long_term_pic_num[32];
+    int ref_pic_list_modification_flag_l0;
+    int ref_pic_list_modification_flag_l1;
+    int modification_count_l0;
+    int modification_count_l1;
 } twig_h264_hdr_t;
 
 typedef struct {
@@ -162,10 +185,9 @@ struct twig_h264_decoder_t {
     twig_ref_state_t ref_state;
     twig_mmco_cmd_t mmco_commands[32];
     int mmco_count;
-    int long_term_reference_flag;
 };
 
-void *twig_get_ve_regs(twig_dev_t *cedar, int flag);
+void *twig_get_ve_regs(twig_dev_t *cedar);
 int twig_wait_for_ve(twig_dev_t *cedar);
 void twig_put_ve_regs(twig_dev_t *cedar);
 
@@ -184,7 +206,7 @@ void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar);
 int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_count);
 void twig_execute_mmco_commands(twig_h264_decoder_t *decoder, twig_frame_t *current_frame);
 void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_pool_t *pool, twig_frame_t *output_frame, int output_poc);
-void twig_build_ref_lists_from_pool(twig_frame_pool_t *pool, twig_slice_type_t slice_type, twig_frame_t **list0, int *l0_count,
+void twig_build_ref_lists(twig_frame_pool_t *pool, twig_h264_hdr_t *hdr, twig_frame_t **list0, int *l0_count,
                                     twig_frame_t **list1, int *l1_count, int current_poc);
 void twig_write_ref_list0_registers(twig_dev_t *cedar, void *ve_regs, twig_frame_pool_t *pool, twig_frame_t **ref_list0, int l0_count);
 void twig_write_ref_list1_registers(twig_dev_t *cedar, void *ve_regs, twig_frame_pool_t *pool, twig_frame_t **ref_list1, int l1_count);

@@ -39,7 +39,7 @@ static void dump_yuv_frame(const char *filename, twig_mem_t *frame_buf, uint16_t
         return;
     }
 
-    uint8_t *yuv_data = (uint8_t *)frame_buf->virt;
+    uint8_t *yuv_data = (uint8_t *)frame_buf->virt_addr;
 
     fwrite(yuv_data, 1, width * height, f);
     fwrite(yuv_data + (width * height), 1, (width * height) / 4, f);
@@ -49,8 +49,93 @@ static void dump_yuv_frame(const char *filename, twig_mem_t *frame_buf, uint16_t
     printf("First frame dumped to %s (%dx%d YUV420)\n", filename, width, height);
 }
 
+static int find_start_code(const uint8_t *data, size_t size, size_t start) {
+    size_t pos, leading_zeros = 0;
+    for (pos = start; pos < size; pos++) {
+        if (data[pos] == 0x00)
+            leading_zeros++;
+        else if (data[pos] == 0x01 && leading_zeros >= 2)
+            return pos - 2;
+        else
+            leading_zeros = 0;
+    }
+    return -1;
+}
+
+static size_t extract_first_frame(const uint8_t *input_data, size_t input_size, uint8_t **output_data) {
+    size_t pos = 0;
+    int found_sps = 0, found_pps = 0, found_slice = 0;
+    size_t frame_end = 0;
+    
+    printf("Extracting first frame data...\n");
+    
+    while (pos < input_size) {
+        int start_code_pos = find_start_code(input_data, input_size, pos);
+        if (start_code_pos < 0)
+            break;
+        
+        pos = start_code_pos + 3;
+        if (pos >= input_size)
+            break;
+        
+        uint8_t nal_header = input_data[pos];
+        uint8_t nal_type = nal_header & 0x1f;
+        switch (nal_type) {
+            case 7:
+                if (!found_sps) {
+                    printf("  Found SPS at position %u\n", start_code_pos);
+                    found_sps = 1;
+                }
+                break;
+            case 8:
+                if (!found_pps) {
+                    printf("  Found PPS at position %u\n", start_code_pos);
+                    found_pps = 1;
+                }
+                break;
+            case 1:
+            case 5:
+                if (!found_slice && found_sps && found_pps) {
+                    printf("  Found first slice (%s) at position %u\n", 
+                           (nal_type == 5) ? "IDR" : "Non-IDR", start_code_pos);
+                    found_slice = 1;
+                    int next_start = find_start_code(input_data, input_size, pos + 1);
+                    frame_end = (next_start > 0) ? next_start : input_size;
+                    goto extract_complete;
+                }
+                break;
+        }
+        pos++;
+    }
+
+extract_complete:
+    if (found_sps && found_pps && found_slice) {
+        *output_data = malloc(frame_end);
+        if (*output_data) {
+            memcpy(*output_data, input_data, frame_end);
+            printf("  Extracted first frame: %zu bytes (SPS + PPS + First Slice)\n", frame_end);
+            return frame_end;
+        }
+    }
+
+    printf("  WARNING: Could not find complete first frame data\n");
+    printf("  Found: SPS=%s, PPS=%s, Slice=%s\n", 
+           found_sps ? "YES" : "NO", 
+           found_pps ? "YES" : "NO", 
+           found_slice ? "YES" : "NO");
+    printf("  Falling back to full input file, decoding may take SIGNIFICANTLY longer...\n");
+
+    *output_data = malloc(input_size);
+    if (*output_data) {
+        memcpy(*output_data, input_data, input_size);
+        return input_size;
+    }
+
+    return 0;
+}
+
 static int check_frame_content(twig_mem_t *frame_buf, uint16_t width, uint16_t height) {
-    uint8_t *data = (uint8_t *)frame_buf->virt;
+    uint8_t *data = (uint8_t *)frame_buf->virt_addr;
     int total_bytes = width * height * 3 / 2;
     int non_zero_count = 0;
 
@@ -92,6 +177,14 @@ int main(int argc, char *argv[]) {
 
     printf("Loaded %zu bytes from input file\n", file_size);
 
+    uint8_t *first_frame_data;
+    size_t first_frame_size = extract_first_frame(file_data, file_size, &first_frame_data);
+    if (first_frame_size == 0) {
+        printf("Failed to extract first frame data\n");
+        munmap(file_data, file_size);
+        return 1;
+    }
+
     twig_dev_t *cedar = twig_open();
     if (!cedar) {
         printf("Failed to initialize Cedar VE\n");
@@ -109,28 +202,29 @@ int main(int argc, char *argv[]) {
     }
     printf("H.264 decoder initialized successfully\n");
 
-    twig_mem_t *bitstream_buf = twig_alloc_mem(cedar, file_size);
+    twig_mem_t *bitstream_buf = twig_alloc_mem(cedar, first_frame_size);
     if (!bitstream_buf) {
         printf("Failed to allocate bitstream buffer\n");
         twig_h264_decoder_destroy(decoder);
         twig_close(cedar);
+        free(first_frame_data);
         munmap(file_data, file_size);
         return 1;
     }
 
-    memcpy(bitstream_buf->virt, file_data, file_size);
-    printf("Bitstream buffer allocated and filled (%zu bytes)\n", file_size);
-    bitstream_buf->size = file_size;
+    memcpy(bitstream_buf->virt_addr, first_frame_data, first_frame_size);
+    printf("Bitstream buffer allocated and filled (%zu bytes)\n", first_frame_size);
+    bitstream_buf->size = first_frame_size;
     printf("\nStarting decode...\n");
     twig_mem_t *output_frame = twig_h264_decode_frame(decoder, bitstream_buf);
 
     if (output_frame) {
         printf("Got output from decoder, testing results...\n");
         printf("Frame buffer address: %p (virtual), 0x%x (physical), 0x%x (IOMMU)\n", 
-               output_frame->virt, output_frame->phys_addr, output_frame->iommu_addr);
+               output_frame->virt_addr, output_frame->phys_addr, output_frame->iommu_addr);
 
         int width, height;
-        if (twig_get_frame_res(decoder, &width, &height) == 0)
+        if (twig_h264_get_frame_res(decoder, &width, &height) == 0)
             printf("Frame dimensions: %dx%d\n", width, height);
 
         if (check_frame_content(output_frame, width, height) == 0)
@@ -147,6 +241,7 @@ int main(int argc, char *argv[]) {
     twig_free_mem(cedar, bitstream_buf);
     twig_h264_decoder_destroy(decoder);
     twig_close(cedar);
+    free(first_frame_data);
     munmap(file_data, file_size);
 
     printf("\nTest completed\n");

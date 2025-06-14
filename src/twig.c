@@ -106,7 +106,7 @@ EXPORT void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem) {
 }
 
 EXPORT void twig_close(twig_dev_t *cedar) {
-    if (cedar->fd == -1)
+    if (!cedar || cedar->fd == -1)
         return;
 
     if (cedar->active == 1)
