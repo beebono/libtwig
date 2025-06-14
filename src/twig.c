@@ -28,7 +28,7 @@ EXPORT twig_dev_t *twig_open(void) {
 
     if(twig_readl((uintptr_t)cedar->regs, VE_CTRL) & 0x00000001) {
         fprintf(stderr, "WARNING: Cedar VE is still in H.264 mode, but twig_open was called again!\n");
-        fprintf(stderr, "         Forcing Refcount to 0 in case the previous instance crashed!\n")
+        fprintf(stderr, "         Forcing a hardware reset in case the previous instance crashed!\n");
         ioctl(cedar->fd, IOCTL_SET_REFCOUNT, 0);
     }
 

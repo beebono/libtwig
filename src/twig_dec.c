@@ -521,10 +521,8 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
 
     if (!decoder->extra_buf) {
         decoder->extra_buf = twig_alloc_mem(decoder->cedar, 1024 * 1024);
-        if (!decoder->extra_buf) {
-            fprintf(stderr, "Failed to allocate extra buffer\n");
+        if (!decoder->extra_buf)
             return NULL;
-        }
     }
 
     uintptr_t ve_base = (uintptr_t)decoder->ve_regs;
