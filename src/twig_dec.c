@@ -599,6 +599,10 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         int l0_count = 0, l1_count = 0;
         twig_build_ref_lists_from_pool(&decoder->frame_pool, decoder->hdr->slice_type, ref_list0, &l0_count, ref_list1, &l1_count, current_poc);
         // TODO: Apply ref_pic_list_modification() here based on header fields
+        if (decoder->hdr->slice_type != SLICE_TYPE_I && decoder->hdr->slice_type != SLICE_TYPE_SI)
+            twig_write_ref_list0_registers(decoder->cedar, decoder->ve_regs, &decoder->frame_pool, ref_list0, l0_count);
+        if (decoder->hdr->slice_type == SLICE_TYPE_B)
+            twig_write_ref_list1_registers(decoder->cedar, decoder->ve_regs, &decoder->frame_pool, ref_list1, l1_count);
 
         twig_writel(h264_base, H264_SEQ_HDR, (0x1 << 19)
                   | ((decoder->sps->frame_mbs_only_flag & 0x1) << 18)

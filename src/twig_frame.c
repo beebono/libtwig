@@ -517,3 +517,45 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
     }
     twig_writel(h264_base, H264_OUTPUT_FRAME_INDEX, output_frame->frame_idx);
 }
+
+void twig_write_ref_list0_registers(twig_dev_t *cedar, void *ve_regs, twig_frame_pool_t *pool, twig_frame_t **ref_list0, int l0_count) {
+    if (!cedar || !ve_regs || !pool || !ref_list0)
+        return;
+
+    uintptr_t ve_base = (uintptr_t)ve_regs;
+    uintptr_t h264_base = ve_base + H264_OFFSET;
+
+    twig_writel(h264_base, H264_RAM_WRITE_PTR, VE_SRAM_H264_REF_LIST0);
+
+    for (int i = 0; i < l0_count; i += 4) {
+        uint32_t list_word = 0;
+        for (int j = 0; j < 4; j++) {
+            if (i + j < l0_count && ref_list0[i + j]) {
+                uint32_t packed_idx = ref_list0[i + j]->frame_idx * 2;
+                list_word |= (packed_idx << (j * 8));
+            }
+        }
+        twig_writel(h264_base, H264_RAM_WRITE_DATA, list_word);
+    }
+}
+
+void twig_write_ref_list1_registers(twig_dev_t *cedar, void *ve_regs, twig_frame_pool_t *pool, twig_frame_t **ref_list1, int l1_count) {
+    if (!cedar || !ve_regs || !pool || !ref_list1)
+        return;
+
+    uintptr_t ve_base = (uintptr_t)ve_regs;
+    uintptr_t h264_base = ve_base + H264_OFFSET;
+
+    twig_writel(h264_base, H264_RAM_WRITE_PTR, VE_SRAM_H264_REF_LIST1);
+
+    for (int i = 0; i < l1_count; i += 4) {
+        uint32_t list_word = 0;
+        for (int j = 0; j < 4; j++) {
+            if (i + j < l1_count && ref_list1[i + j]) {
+                uint32_t packed_idx = ref_list1[i + j]->frame_idx * 2;
+                list_word |= (packed_idx << (j * 8));
+            }
+        }
+        twig_writel(h264_base, H264_RAM_WRITE_DATA, list_word);
+    }
+}
