@@ -16,15 +16,37 @@
 
 typedef struct {
     const uint8_t *data;
+    uint8_t *clean_data;
     size_t size;
     int bit_pos, bits_left;
 } twig_bitreader_t;
 
+static inline uint8_t *twig_strip_epb(const uint8_t *data, size_t size, size_t *new_size) {
+    uint8_t *clean_data = malloc(size);
+    size_t write_pos = 0;
+    
+    for (size_t i = 0; i < size; i++) {
+        if (i + 2 < size && 
+            data[i] == 0x00 && data[i+1] == 0x00 && data[i+2] == 0x03) {
+            clean_data[write_pos++] = 0x00;
+            clean_data[write_pos++] = 0x00;
+            i += 2;
+        } else {
+            clean_data[write_pos++] = data[i];
+        }
+    }
+    
+    *new_size = write_pos;
+    return clean_data;
+}
+
+
 static inline void twig_bitreader_init(twig_bitreader_t *br, const uint8_t *data, size_t size) {
-    br->data = data;
-    br->size = size;
+    size_t clean_size;
+    br->data = twig_strip_epb(data, size, &clean_size);
+    br->size = clean_size;
     br->bit_pos = 0;
-    br->bits_left = size * 8;
+    br->bits_left = clean_size * 8;
 }
 
 static inline int twig_bitreader_bits_left(twig_bitreader_t *br) {

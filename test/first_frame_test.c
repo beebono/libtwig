@@ -1,12 +1,9 @@
 #include "twig.h"
-#include "twig_dec.h"
 
 static void print_usage(const char *prog_name) {
-    printf("Usage: %s <input.h264> [output.yuv [width_of_input]]\n", prog_name);
+    printf("Usage: %s <input.h264> [output.yuv]\n", prog_name);
     printf("  input.h264      - Raw H.264 elementary stream file\n");
     printf("  output.yuv      - Optional: dump first decoded frame to specified YUV file name\n");
-    printf("  width_of_input  - Optional: width of the input file's frames in pixels\n");
-    printf("                              (defaults to 1920, will not change actual resolution)\n");
 }
 
 static int load_file_to_memory(const char *filename, uint8_t **data, size_t *size) {
@@ -82,16 +79,11 @@ int main(int argc, char *argv[]) {
     
     const char *input_file = argv[1];
     const char *output_file = (argc > 2) ? argv[2] : NULL;
-    int file_frame_width = (argc > 3) ? atoi(argv[3]) : 1920;
     
     printf("Twig H.264 Decoder Test\n");
     printf("Input file: %s\n", input_file);
     if (output_file) {
         printf("Output file: %s\n", output_file);
-        if (file_frame_width != 1920)
-            printf("Provided width: %d\n", file_frame_width);
-        else
-            printf("Default width: %d\n", 1920);
     }
     
     uint8_t *file_data;
@@ -109,7 +101,7 @@ int main(int argc, char *argv[]) {
     }
     printf("Cedar VE initialized successfully\n");
 
-    twig_h264_decoder_t *decoder = twig_h264_decoder_init(cedar, file_frame_width);
+    twig_h264_decoder_t *decoder = twig_h264_decoder_init(cedar);
     if (!decoder) {
         printf("Failed to initialize H.264 decoder\n");
         twig_close(cedar);
@@ -127,9 +119,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    memcpy(bitstream_buf->virt, file_data, bitstream_buf->size);
+    memcpy(bitstream_buf->virt, file_data, file_size);
     printf("Bitstream buffer allocated and filled (%zu bytes)\n", file_size);
-
+    bitstream_buf->size = file_size;
     printf("\nStarting decode...\n");
     twig_mem_t *output_frame = twig_h264_decode_frame(decoder, bitstream_buf);
     

@@ -116,7 +116,7 @@ typedef enum {
     H264_REC_CHROMA            = 0xd0,
     H264_FWD_CHROMA            = 0xd4,
     H264_BACK_CHROMA           = 0xd8,
-    H264_BASIC_BITS_DATA       = 0xdc,
+    H264_BASIC_BITS            = 0xdc,
     H264_RAM_WRITE_PTR         = 0xe0,
     H264_RAM_WRITE_DATA        = 0xe4,
     H264_ALT_LUMA              = 0xe8,

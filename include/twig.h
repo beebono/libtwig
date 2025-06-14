@@ -29,6 +29,7 @@ typedef struct {
 } twig_mem_t;
 
 typedef struct twig_dev_t twig_dev_t;
+typedef struct twig_h264_decoder_t twig_h264_decoder_t;
 
 twig_dev_t *twig_open(void);    
 void twig_close(twig_dev_t *cedar);
@@ -36,5 +37,11 @@ void twig_close(twig_dev_t *cedar);
 twig_mem_t *twig_alloc_mem(twig_dev_t *cedar, size_t size);
 void twig_flush_mem(twig_mem_t *mem);
 void twig_free_mem(twig_dev_t *cedar, twig_mem_t *mem);
+
+twig_h264_decoder_t *twig_h264_decoder_init(twig_dev_t *cedar);
+twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem_t *bitstream_buf);
+int twig_get_frame_res(twig_h264_decoder_t *decoder, int *width, int *height);
+void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *output_buf);
+void twig_h264_decoder_destroy(twig_h264_decoder_t* decoder);
 
 #endif // TWIG_H_
