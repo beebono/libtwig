@@ -645,7 +645,7 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS));
         twig_writel(h264_base, H264_CTRL, twig_readl(h264_base, H264_CTRL) | 0x7);
         twig_writel(h264_base, H264_TRIGGER, 0x8);
-        twig_wait_for_ve(decoder->cedar)
+        twig_wait_for_ve(decoder->cedar);
         twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS));
 
         pos = next_start - 3;
@@ -654,10 +654,17 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
 
     output_frame->frame_num = decoder->hdr->frame_num;
     output_frame->poc = current_poc;
-    if (nal_ref_idc != 0)
-        twig_add_reference_frame(decoder->frame_pool, output_frame);
-
+    if (nal_ref_idc != 0) {
+        if (nal_type == NAL_IDR_SLICE) {
+            for (int i = 0; i < decoder->frame_pool.allocated_count; i++) {
+                if (decoder->frame_pool.frames[i].is_reference)
+                    twig_mark_frame_unref(&decoder->frame_pool, &decoder->frame_pool.frames[i]);
+            }
+        }
+        twig_add_reference_frame(&decoder->frame_pool, output_frame);
+    }
     twig_update_poc_state(decoder, current_poc);
+    output_frame->state = FRAME_STATE_APP_HELD;
     return output_frame->buffer;
 }
 
@@ -683,7 +690,18 @@ EXPORT void twig_h264_return_frame(twig_h264_decoder_t *decoder, twig_mem_t *out
     if (!decoder || !output_buf)
         return;
 
-    twig_mark_frame_return(&decoder->frame_pool, output_buf, decoder->cedar);
+    for (int i = 0; i < decoder->pool->allocated_count; i++) {
+        if (decoder->pool->frames[i].buffer == output_buf) {
+            twig_frame_t *frame = &decoder->pool->frames[i];            
+            if (frame->is_reference)
+                frame->state = FRAME_STATE_DECODER_HELD;
+            else
+                frame->state = FRAME_STATE_FREE;
+
+            return;
+        }
+    }
+    twig_free_mem(decoder->cedar, output_buf);
 }
 
 EXPORT void twig_h264_decoder_destroy(twig_h264_decoder_t* decoder) {

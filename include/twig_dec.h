@@ -60,14 +60,6 @@ typedef struct {
 } twig_frame_pool_t;
 
 typedef struct {
-    twig_frame_t *short_refs[16];
-    twig_frame_t *long_refs[16];  
-    int short_count;
-    int long_count;
-    int max_long_term_frame_idx;
-} twig_ref_management_t;
-
-typedef struct {
     uint8_t profile_idc;
     uint8_t level_idc;
     uint8_t chroma_format_idc;
@@ -184,8 +176,8 @@ int32_t twig_get_se_golomb_hw(void *regs);
 
 int twig_frame_pool_init(twig_frame_pool_t *pool, int width, int height);
 twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, uint16_t pwimm1);
-void twig_mark_frame_return(twig_frame_pool_t *pool, twig_mem_t *buffer, twig_dev_t *cedar);
-void twig_mark_frame_unref(twig_frame_t *frame);
+void twig_mark_frame_unref(twig_frame_pool_t *pool, twig_frame_t *frame);
+void twig_remove_stale_frames(twig_frame_pool_t *pool);
 void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar);
 
 int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_count);

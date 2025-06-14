@@ -129,109 +129,103 @@ int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_c
     return 0;
 }
 
-static void twig_mmco_short_to_unused(twig_ref_management_t *ref_mgmt, int difference_of_pic_nums_minus1, int current_frame_num) {
+static void twig_mmco_short_to_unused(twig_frame_pool_t *pool, int difference_of_pic_nums_minus1, int current_frame_num) {
     int target_frame_num = current_frame_num - (difference_of_pic_nums_minus1 + 1);
-    for (int i = 0; i < ref_mgmt->short_count; i++) {
-        if (ref_mgmt->short_refs[i]->frame_num == target_frame_num) {
-            ref_mgmt->short_refs[i]->is_reference = 0;
-            for (int j = i; j < ref_mgmt->short_count - 1; j++) {
-                ref_mgmt->short_refs[j] = ref_mgmt->short_refs[j + 1];
+    for (int i = 0; i < pool->short_count; i++) {
+        if (pool->short_refs[i]->frame_num == target_frame_num) {
+            twig_mark_frame_unref(pool, pool->short_refs[i]);
+            for (int j = i; j < pool->short_count - 1; j++) {
+                pool->short_refs[j] = pool->short_refs[j + 1];
             }
-            ref_mgmt->short_count--;
         }
     }
 }
 
-static void twig_mmco_long_to_unused(twig_ref_management_t *ref_mgmt, int long_term_pic_num) {
-    for (int i = 0; i < ref_mgmt->long_count; i++) {
-        if (ref_mgmt->long_refs[i]->long_term_idx == long_term_pic_num) {
-            ref_mgmt->long_refs[i]->is_reference = 0;
-            ref_mgmt->long_refs[i]->is_long_term = 0;
-            for (int j = i; j < ref_mgmt->long_count - 1; j++) {
-                ref_mgmt->long_refs[j] = ref_mgmt->long_refs[j + 1];
+static void twig_mmco_long_to_unused(twig_frame_pool_t *pool, int long_term_pic_num) {
+    for (int i = 0; i < pool->long_count; i++) {
+        if (pool->long_refs[i]->long_term_idx == long_term_pic_num) {
+            twig_mark_frame_unref(pool, pool->long_refs[i]);
+            for (int j = i; j < pool->long_count - 1; j++) {
+                pool->long_refs[j] = pool->long_refs[j + 1];
             }
-            ref_mgmt->long_count--;
         }
     }
 }
 
-static void twig_mmco_short_to_long(twig_ref_management_t *ref_mgmt, int difference_of_pic_nums_minus1, int long_term_frame_idx, int current_frame_num) {
+static void twig_mmco_short_to_long(twig_frame_pool_t *pool, int difference_of_pic_nums_minus1, int long_term_frame_idx, int current_frame_num) {
     int target_frame_num = current_frame_num - (difference_of_pic_nums_minus1 + 1);
-    for (int i = 0; i < ref_mgmt->short_count; i++) {
-        if (ref_mgmt->short_refs[i]->frame_num == target_frame_num) {
-            twig_frame_t *frame = ref_mgmt->short_refs[i];
-            for (int j = i; j < ref_mgmt->short_count - 1; j++) {
-                ref_mgmt->short_refs[j] = ref_mgmt->short_refs[j + 1];
+    for (int i = 0; i < pool->short_count; i++) {
+        if (pool->short_refs[i]->frame_num == target_frame_num) {
+            twig_frame_t *frame = pool->short_refs[i];
+            for (int j = i; j < pool->short_count - 1; j++) {
+                pool->short_refs[j] = pool->short_refs[j + 1];
             }
-            ref_mgmt->short_count--;
-            twig_mmco_long_to_unused(ref_mgmt, long_term_frame_idx);
+            pool->short_count--;
+            twig_mmco_long_to_unused(pool, long_term_frame_idx);
             frame->is_long_term = 1;
             frame->long_term_idx = long_term_frame_idx;
-            ref_mgmt->long_refs[ref_mgmt->long_count++] = frame;
+            pool->long_refs[pool->long_count++] = frame;
         }
     }
 }
 
-static void twig_mmco_set_max_long_term(twig_ref_management_t *ref_mgmt, int max_long_term_frame_idx_plus1) {
-    ref_mgmt->max_long_term_frame_idx = max_long_term_frame_idx_plus1 - 1;
-    for (int i = ref_mgmt->long_count - 1; i >= 0; i--) {
-        if (ref_mgmt->long_refs[i]->long_term_idx > ref_mgmt->max_long_term_frame_idx) {
-            ref_mgmt->long_refs[i]->is_reference = 0;
-            ref_mgmt->long_refs[i]->is_long_term = 0;
-            for (int j = i; j < ref_mgmt->long_count - 1; j++) {
-                ref_mgmt->long_refs[j] = ref_mgmt->long_refs[j + 1];
+static void twig_mmco_set_max_long_term(twig_frame_pool_t *pool, int max_long_term_frame_idx_plus1) {
+    pool->max_long_term_frame_idx = max_long_term_frame_idx_plus1 - 1;
+    for (int i = pool->long_count - 1; i >= 0; i--) {
+        if (pool->long_refs[i]->long_term_idx > pool->max_long_term_frame_idx) {
+            twig_mark_frame_unref(pool, pool->long_refs[i]);
+            for (int j = i; j < pool->long_count - 1; j++) {
+                pool->long_refs[j] = pool->long_refs[j + 1];
             }
-            ref_mgmt->long_count--;
         }
     }
 }
 
-static void twig_mmco_reset_all(twig_ref_management_t *ref_mgmt) {
-    for (int i = 0; i < ref_mgmt->short_count; i++) {
-        ref_mgmt->short_refs[i]->is_reference = 0;
+static void twig_mmco_reset_all(twig_frame_pool_t *pool) {
+    for (int i = 0; i < pool->short_count; i++) {
+        twig_mark_frame_unref(pool, pool->short_refs[i]);
     }
-    for (int i = 0; i < ref_mgmt->long_count; i++) {
-        ref_mgmt->long_refs[i]->is_reference = 0;
-        ref_mgmt->long_refs[i]->is_long_term = 0;
+    for (int i = 0; i < pool->long_count; i++) {
+        twig_mark_frame_unref(pool, pool->long_refs[i]);
     }
-    ref_mgmt->short_count = 0;
-    ref_mgmt->long_count = 0;
-    ref_mgmt->max_long_term_frame_idx = -1;
+    pool->short_count = 0;
+    pool->long_count = 0;
+    pool->max_long_term_frame_idx = -1;
 }
 
-static void twig_mmco_current_to_long(twig_ref_management_t *ref_mgmt, twig_frame_t *current_frame, int long_term_frame_idx) {
-    if (ref_mgmt->max_long_term_frame_idx >= 0 && long_term_frame_idx > ref_mgmt->max_long_term_frame_idx)
+static void twig_mmco_current_to_long(twig_frame_pool_t *pool, twig_frame_t *current_frame, int long_term_frame_idx) {
+    if (pool->max_long_term_frame_idx >= 0 && long_term_frame_idx > pool->max_long_term_frame_idx)
         return;
 
-    twig_mmco_long_to_unused(ref_mgmt, long_term_frame_idx);
+    twig_mmco_long_to_unused(pool, long_term_frame_idx);
     current_frame->is_long_term = 1;
     current_frame->long_term_idx = long_term_frame_idx;
-    if (ref_mgmt->long_count < 16)
-        ref_mgmt->long_refs[ref_mgmt->long_count++] = current_frame;
+    if (pool->long_count < 16)
+        pool->long_refs[pool->long_count++] = current_frame;
 }
 
 void twig_execute_mmco_commands(twig_h264_decoder_t *decoder, twig_frame_t *current_frame) {
-    twig_ref_management_t *ref_mgmt = &decoder->ref_mgmt;
+    twig_frame_pool_t *pool = &decoder->frame_pool;
     for (int i = 0; i < decoder->mmco_count; i++) {
         twig_mmco_cmd_t *cmd = &decoder->mmco_commands[i];
         switch (cmd->memory_management_control_operation) {
             case 1:
-                twig_mmco_short_to_unused(ref_mgmt, cmd->difference_of_pic_nums_minus1, current_frame->frame_num);
+                twig_mmco_short_to_unused(pool, cmd->difference_of_pic_nums_minus1, current_frame->frame_num);
                 break;
             case 2:
-                twig_mmco_long_to_unused(ref_mgmt, cmd->long_term_pic_num);
+                twig_mmco_long_to_unused(pool, cmd->long_term_pic_num);
                 break;
             case 3:
-                twig_mmco_short_to_long(ref_mgmt, cmd->difference_of_pic_nums_minus1, cmd->long_term_frame_idx, current_frame->frame_num);
+                twig_mmco_short_to_long(pool, cmd->difference_of_pic_nums_minus1, cmd->long_term_frame_idx, current_frame->frame_num);
                 break;
             case 4:
-                twig_mmco_set_max_long_term(ref_mgmt, cmd->max_long_term_frame_idx_plus1);
+                twig_mmco_set_max_long_term(pool, cmd->max_long_term_frame_idx_plus1);
                 break;
             case 5:
-                twig_mmco_reset_all(ref_mgmt);
+                twig_mmco_reset_all(pool);
                 break;
             case 6:
-                twig_mmco_current_to_long(ref_mgmt, current_frame, cmd->long_term_frame_idx);
+                twig_mmco_current_to_long(pool, current_frame, cmd->long_term_frame_idx);
                 break;
             default:
                 break;
@@ -257,8 +251,7 @@ void twig_add_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     int max_refs = 16;
     if (pool->short_count > max_refs) {
         twig_frame_t *oldest = pool->short_refs[pool->short_count - 1];
-        oldest->is_reference = 0;
-        pool->short_count--;
+        twig_mark_frame_unref(pool, oldest);
     }
 }
 
@@ -277,13 +270,7 @@ void twig_remove_short_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
 void twig_add_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
     for (int i = 0; i < pool->long_count; i++) {
         if (pool->long_refs[i]->long_term_idx == frame->long_term_idx) {
-            pool->long_refs[i]->is_reference = 0;
-            pool->long_refs[i]->is_long_term = 0;
-
-            for (int j = i; j < pool->long_count - 1; j++) {
-                pool->long_refs[j] = pool->long_refs[j + 1];
-            }
-            pool->long_count--;
+            twig_mark_frame_unref(pool, pool->long_refs[i]);
             break;
         }
     }
@@ -305,28 +292,6 @@ void twig_remove_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *frame) {
             return;
         }
     }
-}
-
-void twig_mark_frame_return(twig_frame_pool_t *pool, twig_mem_t *buffer, twig_dev_t *cedar) {
-    if (!pool || !buffer)
-        return;
-
-    for (int i = 0; i < pool->allocated_count; i++) {
-        if (pool->frames[i].buffer == buffer) {
-            twig_frame_t *frame = &pool->frames[i];
-            if (frame->state != FRAME_STATE_APP_HELD)
-                fprintf(stderr, "WARNING: App returned frame not in APP_HELD state\n");
-            
-            if (frame->is_reference)
-                frame->state = FRAME_STATE_DECODER_HELD;
-            else
-                frame->state = FRAME_STATE_FREE;
-
-            return;
-        }
-    }
-    fprintf(stderr, "NOTICE: Returned frame not in current pool, freeing its buffer!\n");
-    twig_free_mem(cedar, buffer);
 }
 
 void twig_mark_frame_unref(twig_frame_pool_t *pool, twig_frame_t *frame) {
@@ -355,9 +320,19 @@ void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar) {
         return;
 
     for (int i = 0; i < pool->allocated_count; i++) {
+        if (pool->frames[i].is_reference) {
+            twig_mark_frame_unref(pool, &pool->frames[i]);
+        }
+    }
+
+    for (int i = 0; i < pool->allocated_count; i++) {
         if (pool->frames[i].buffer) {
             twig_free_mem(cedar, pool->frames[i].buffer);
             pool->frames[i].buffer = NULL;
+        }
+        if (pool->frames[i].extra_data) {
+            twig_free_mem(cedar, pool->frames[i].extra_data);
+            pool->frames[i].extra_data = NULL;
         }
     }
 
