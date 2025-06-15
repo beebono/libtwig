@@ -508,6 +508,14 @@ static int twig_setup_vld_registers(twig_h264_decoder_t *decoder, twig_mem_t *bi
 
     twig_writel(h264_base, H264_TRIGGER, 0x7);
 
+    printf("DEBUG: VLD register setup complete.\n");
+    printf("       Wrote the following values to listed register:\n");
+    printf("       - H264_CTRL       = 0x%x and read back 0x%x\n", vld_ctrl, twig_readl(h264_base, H264_CTRL));
+    printf("       - H264_VLD_LEN    = 0x%lx and read back 0x%x\n", nal_size * 8, twig_readl(h264_base, H264_VLD_LEN));
+    printf("       - H264_VLD_OFFSET = 0x%lx and read back 0x%x\n", nal_pos * 8, twig_readl(h264_base, H264_VLD_OFFSET));
+    printf("       - H264_VLD_END    = 0x%lx and read back 0x%x\n", bitstream_addr + bitstream_buf->size - 1, twig_readl(h264_base, H264_VLD_END));
+    printf("       - H264_VLD_ADDR   = 0x%x and read back 0x%x\n", (bitstream_addr & 0x0ffffff0) | (bitstream_addr >> 28) | (0x7 << 28), twig_readl(h264_base, H264_VLD_ADDR));
+    printf("       - H264_TRIGGER    = 0x7 (no read back, trigger automatically cleared)\n");
     return 0;
 }
 
@@ -961,6 +969,9 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         twig_writel(h264_base, H264_CTRL, twig_readl(h264_base, H264_CTRL) | 0x7);
         twig_writel(h264_base, H264_TRIGGER, 0x8);
         twig_wait_for_ve(decoder->cedar);
+        printf("DEBUG: Status registers after wait:\n");
+        printf("           - VE_STATUS reports:   0x%x\n", twig_readl(ve_base, VE_STATUS));
+        printf("           - H264_STATUS reports: 0x%x\n", twig_readl(h264_base, H264_STATUS));
         twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS));
 
         pos = next_start - 3;
