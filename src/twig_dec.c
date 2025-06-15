@@ -969,9 +969,10 @@ EXPORT twig_mem_t *twig_h264_decode_frame(twig_h264_decoder_t *decoder, twig_mem
         twig_writel(h264_base, H264_CTRL, twig_readl(h264_base, H264_CTRL) | 0x7);
         twig_writel(h264_base, H264_TRIGGER, 0x8);
         twig_wait_for_ve(decoder->cedar);
-        printf("DEBUG: Status registers after wait:\n");
+        printf("DEBUG: Status and Error registers after wait:\n");
         printf("           - VE_STATUS reports:   0x%x\n", twig_readl(ve_base, VE_STATUS));
         printf("           - H264_STATUS reports: 0x%x\n", twig_readl(h264_base, H264_STATUS));
+        printf("           - H264_ERROR reports:  0x%x\n", twig_readl(h264_base, H264_ERROR));
         twig_writel(h264_base, H264_STATUS, twig_readl(h264_base, H264_STATUS));
 
         pos = next_start - 3;
