@@ -4,7 +4,7 @@
  * 
  * Public Cedar direct hardware access API
  *
- * Copyright (C) 2025 Noxwell(Beebono)
+ * Garbage code by Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */
 

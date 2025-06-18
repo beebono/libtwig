@@ -1,6 +1,6 @@
 #include "twig.h"
+#include "twig_bits.h"
 #include "twig_dec.h"
-#include "twig_regs.h"
 
 #define FRAME_TYPE_PROGRESSIVE       0
 #define FRAME_TYPE_INTERLACED_FRAME  1  
@@ -44,21 +44,21 @@ twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, ui
     if (!pool || !cedar)
         return NULL;
 
-    for (int i = 0; i < pool->allocated_count; i++) {
+    for (int i = 0; i < pool->allocated_count; i++) { // Frame form pool is free, mark and return.
         if (pool->frames[i].state == FRAME_STATE_FREE) {
             pool->frames[i].state = FRAME_STATE_DECODER_HELD;
             return &pool->frames[i];
         }
     }
 
-    if (pool->allocated_count < MAX_FRAME_POOL_SIZE) {
+    if (pool->allocated_count < MAX_FRAME_POOL_SIZE) { // No free frames, but we have space. Allocate and return.
         twig_frame_t *frame = &pool->frames[pool->allocated_count];
         
         frame->buffer = twig_alloc_mem(cedar, pool->frame_size);
         if (!frame->buffer)
             return NULL;
 
-        int extra_buf_size = 327680;
+        int extra_buf_size = 327680; // 327680 = 320 * 1024
         if (pool->frame_width >= 2048) {
             extra_buf_size += (pwimm1 + 32) * 192;
             extra_buf_size = (extra_buf_size + 4095) & ~4095;
@@ -81,7 +81,7 @@ twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, ui
         return frame;
     }
 
-    for (int i = 0; i < pool->allocated_count; i++) {
+    for (int i = 0; i < pool->allocated_count; i++) { // Frame isn't a reference, but is still held? Basically a free frame, so make sure its state is correct and return.
         if (!pool->frames[i].is_reference && pool->frames[i].state == FRAME_STATE_DECODER_HELD) {
             pool->frames[i].state = FRAME_STATE_DECODER_HELD;
             return &pool->frames[i];
@@ -131,33 +131,33 @@ static void twig_remove_long_term_ref(twig_frame_pool_t *pool, twig_frame_t *fra
 
 int twig_parse_mmco_commands(void *regs, twig_mmco_cmd_t *mmco_list, int *mmco_count) {
     *mmco_count = 0;
-    int adaptive_mode = twig_get_1bit_hw(regs);
+    int adaptive_mode = twig_get_1bit(regs);
     if (!adaptive_mode)
         return 0;
 
     do {
         twig_mmco_cmd_t *cmd = &mmco_list[*mmco_count];
-        cmd->memory_management_control_operation = twig_get_ue_golomb_hw(regs);
+        cmd->memory_management_control_operation = twig_get_ue(regs);
         switch (cmd->memory_management_control_operation) {
             case 0:
                 return 0;
             case 1:
-                cmd->difference_of_pic_nums_minus1 = twig_get_ue_golomb_hw(regs);
+                cmd->difference_of_pic_nums_minus1 = twig_get_ue(regs);
                 break;
             case 2: 
-                cmd->long_term_pic_num = twig_get_ue_golomb_hw(regs);
+                cmd->long_term_pic_num = twig_get_ue(regs);
                 break;
             case 3:
-                cmd->difference_of_pic_nums_minus1 = twig_get_ue_golomb_hw(regs);
-                cmd->long_term_frame_idx = twig_get_ue_golomb_hw(regs);
+                cmd->difference_of_pic_nums_minus1 = twig_get_ue(regs);
+                cmd->long_term_frame_idx = twig_get_ue(regs);
                 break;
             case 4:
-                cmd->max_long_term_frame_idx_plus1 = twig_get_ue_golomb_hw(regs);
+                cmd->max_long_term_frame_idx_plus1 = twig_get_ue(regs);
                 break;
             case 5:
                 break;
             case 6:
-                cmd->long_term_frame_idx = twig_get_ue_golomb_hw(regs);
+                cmd->long_term_frame_idx = twig_get_ue(regs);
                 break;
             default:
                 return -1;
@@ -198,14 +198,14 @@ static void twig_mmco_short_to_long(twig_frame_pool_t *pool, int difference_of_p
 
 static void twig_mmco_set_max_long_term(twig_frame_pool_t *pool, int max_long_term_frame_idx_plus1) {
     pool->max_long_term_frame_idx = max_long_term_frame_idx_plus1 - 1;
-    for (int i = pool->long_count - 1; i >= 0; i--) {
+    for (int i = pool->long_count - 1; i >= 0; i--) { // Need to reset pool on changing maximum
         if (pool->long_refs[i]->long_term_idx > pool->max_long_term_frame_idx)
             twig_mark_frame_unref(pool, pool->long_refs[i]);
     }
 }
 
 static void twig_mmco_reset_all(twig_frame_pool_t *pool) {
-    for (int i = 0; i < pool->short_count; i++) {
+    for (int i = 0; i < pool->short_count; i++) { // The red button has been pressed, nuke them all!
         twig_mark_frame_unref(pool, pool->short_refs[i]);
     }
     for (int i = 0; i < pool->long_count; i++) {
@@ -291,7 +291,7 @@ void twig_mark_frame_unref(twig_frame_pool_t *pool, twig_frame_t *frame) {
 }
 
 void twig_remove_stale_frames(twig_frame_pool_t *pool) {
-    for (int i = 0; i < pool->allocated_count; i++) {
+    for (int i = 0; i < pool->allocated_count; i++) { // Frames were marked non-ref, but still held. Mark as free!
         if (pool->frames[i].state == FRAME_STATE_DECODER_HELD && pool->frames[i].is_reference == 0)
             pool->frames[i].state = FRAME_STATE_FREE;
     }
@@ -318,7 +318,7 @@ void twig_frame_pool_cleanup(twig_frame_pool_t *pool, twig_dev_t *cedar) {
         }
     }
 
-    pool->allocated_count = 0;
+    pool->allocated_count = 0; // Pool's closed
 }
 
 static void twig_build_list0(twig_frame_pool_t *pool, twig_frame_t **list0, int *l0_count, int current_poc) {
@@ -558,8 +558,7 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
     if (!cedar || !ve_regs || !pool || !output_frame)
         return;
 
-    uintptr_t ve_base = (uintptr_t)ve_regs;
-    uintptr_t h264_base = ve_base + H264_OFFSET;
+    void *h264_base = ve_regs + H264_OFFSET;
 
     twig_writel(h264_base, H264_RAM_WRITE_PTR, VE_SRAM_H264_FRAMEBUFFER_LIST);
 
@@ -587,19 +586,18 @@ void twig_write_framebuffer_list(twig_dev_t *cedar, void *ve_regs, twig_frame_po
         } else {
             uint32_t luma_addr = frame->buffer->iommu_addr;
             uint32_t luma_size = pool->frame_width * pool->frame_height;
-            uint32_t chroma_addr = luma_addr + luma_size;
             uint32_t extra_addr = frame->extra_data->iommu_addr;
             uint32_t extra_size = frame->extra_data->size;
             int frame_poc = is_output ? output_poc : frame->poc;
 
-            twig_writel(h264_base, H264_RAM_WRITE_DATA, (uint16_t)frame_poc);
-            twig_writel(h264_base, H264_RAM_WRITE_DATA, (uint16_t)frame_poc);   
-            twig_writel(h264_base, H264_RAM_WRITE_DATA, 0 << 8);
+            twig_writel(h264_base, H264_RAM_WRITE_DATA, (uint16_t)frame_poc); // FIXME: Use the correct POC for each slot?
+            twig_writel(h264_base, H264_RAM_WRITE_DATA, (uint16_t)frame_poc); //        Why did I write it this way? What?
+            twig_writel(h264_base, H264_RAM_WRITE_DATA, 0 << 8);              //        And this line too? Was I that tired?
             twig_writel(h264_base, H264_RAM_WRITE_DATA, luma_addr);
-            twig_writel(h264_base, H264_RAM_WRITE_DATA, chroma_addr); 
+            twig_writel(h264_base, H264_RAM_WRITE_DATA, luma_addr + luma_size); 
             twig_writel(h264_base, H264_RAM_WRITE_DATA, extra_addr);
             twig_writel(h264_base, H264_RAM_WRITE_DATA, extra_addr + extra_size);
-            twig_writel(h264_base, H264_RAM_WRITE_DATA, 0);
+            twig_writel(h264_base, H264_RAM_WRITE_DATA, 0); // At least I know this is supposed to be zero...
         }
     }
     twig_writel(h264_base, H264_OUTPUT_FRAME_INDEX, output_frame->frame_idx);
@@ -609,8 +607,7 @@ void twig_write_ref_list0_registers(twig_dev_t *cedar, void *ve_regs, twig_frame
     if (!cedar || !ve_regs || !pool || !ref_list0)
         return;
 
-    uintptr_t ve_base = (uintptr_t)ve_regs;
-    uintptr_t h264_base = ve_base + H264_OFFSET;
+    void *h264_base = ve_regs + H264_OFFSET;
 
     twig_writel(h264_base, H264_RAM_WRITE_PTR, VE_SRAM_H264_REF_LIST0);
 
@@ -630,8 +627,7 @@ void twig_write_ref_list1_registers(twig_dev_t *cedar, void *ve_regs, twig_frame
     if (!cedar || !ve_regs || !pool || !ref_list1)
         return;
 
-    uintptr_t ve_base = (uintptr_t)ve_regs;
-    uintptr_t h264_base = ve_base + H264_OFFSET;
+    void *h264_base = ve_regs + H264_OFFSET;
 
     twig_writel(h264_base, H264_RAM_WRITE_PTR, VE_SRAM_H264_REF_LIST1);
 

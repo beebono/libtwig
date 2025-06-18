@@ -1,1 +1,1 @@
-Files in this folder are from linux-sunxi
+Files in this folder are not authored by this repo

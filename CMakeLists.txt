@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(twig VERSION 1.0.0 LANGUAGES C)
+project(twig VERSION 0.0.2 LANGUAGES C)
 
 set(TWIG_SOURCES
     src/twig.c
@@ -26,7 +26,7 @@ target_include_directories(twig PUBLIC
 
 set_target_properties(twig PROPERTIES
     VERSION ${PROJECT_VERSION}
-    SOVERSION 1
+    SOVERSION 0
 )
 
 target_link_libraries(twig PRIVATE pthread)

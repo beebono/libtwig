@@ -11,13 +11,11 @@ Streamlined CedarX variant library, pruned for H.264 decoding with easy-to-use b
 
 ### 2. Register Definitions and Access (`twig_regs.h`)
 - Helper functions for writing to and reading from Cedar VE registers
-- Comprehensive list of relevant register bases and offsets
+- Includes list of relevant register bases and offsets
 
-### 3. Software Bitreader (`twig_bits.h`)
-- Allows reading SPS/PPS information before buffer requests
-- Tracks bitstream position per `twig_bitreader_t` instance
+### 3. Hardware Bitreader (`twig_bits.h`)
+- Allows reading SPS/PPS information
 - Convenience functions for single bit reads/skips
-- Utility function `twig_show_bits` dumps bit values w/o advancing
 
 ## Usage Example
 

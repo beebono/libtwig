@@ -4,7 +4,7 @@
  * 
  * Private Cedar hardware accelerated H.264 decoding API
  *
- * Copyright (C) 2025 Noxwell(Beebono)
+ * Garbage code by Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */
 
@@ -185,16 +185,12 @@ struct twig_h264_decoder_t {
     twig_ref_state_t ref_state;
     twig_mmco_cmd_t mmco_commands[32];
     int mmco_count;
+    size_t current_pos;
 };
 
 void *twig_get_ve_regs(twig_dev_t *cedar);
 int twig_wait_for_ve(twig_dev_t *cedar);
 void twig_put_ve_regs(twig_dev_t *cedar);
-
-uint32_t twig_get_bits_hw(void *regs, int num);
-uint32_t twig_get_1bit_hw(void *regs);
-uint32_t twig_get_ue_golomb_hw(void *regs);
-int32_t twig_get_se_golomb_hw(void *regs);
 
 int twig_frame_pool_init(twig_frame_pool_t *pool, int width, int height);
 twig_frame_t *twig_frame_pool_get(twig_frame_pool_t *pool, twig_dev_t *cedar, uint16_t pwimm1);

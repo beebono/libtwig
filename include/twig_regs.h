@@ -4,7 +4,7 @@
  * 
  * Supplemental Cedar hardware register defintions and read/write functions
  *
- * Copyright (C) 2025 Noxwell(Beebono)
+ * Garbage code by Noxwell(Beebono)
  * Based on CedarX framework by Allwinner Technology Co. Ltd.
  */
 
@@ -13,14 +13,12 @@
 
 #include <stdint.h>
 
-static inline void twig_writel(uintptr_t base, uint8_t offset, uint32_t value) {
-    volatile uint32_t *addr = (volatile uint32_t *)(base + offset);
-    *addr = value;
+static inline void twig_writel(void *base, uint8_t offset, uint32_t value) {
+    *((volatile uint32_t*)(base + offset)) = value;
 }
 
-static inline uint32_t twig_readl(uintptr_t base, uint8_t offset) {
-    volatile const uint32_t *addr = (volatile const uint32_t *)(base + offset);
-    return *addr;
+static inline uint32_t twig_readl(void *base, uint8_t offset) {
+    return *((volatile uint32_t*)(base + offset));
 }
 
 #define VE_BASE 0x01c0e000
